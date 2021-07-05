@@ -179,6 +179,10 @@ class PPOTrainer():
             if self.vec_obs is not None:
                 self.vec_obs[i] = vec_obs
 
+        # Warm Up Recurrent Cell
+        self.recurrent_cell = self.model.warm_up_hidden_state(self.vis_obs, self.vec_obs, self.recurrent_cell, self.recurrence["warm_up"], self.mini_batch_device)
+
+
     def run_training(self):
         """Orchestrates the PPO training:
             1. Decays training parameters in relation to training progression
@@ -337,13 +341,19 @@ class PPOTrainer():
                     if self.vec_obs is not None:
                         self.vec_obs[w] = vec_obs
                     # Reset recurrent cell states
-                    # if self.recurrence is not None:
-                    #     hxs, cxs = self.model.init_recurrent_cell_states(1, self.mini_batch_device)
-                    #     if self.recurrence["layer_type"] == "gru":
-                    #         self.recurrent_cell[:, w] = hxs
-                    #     elif self.recurrence["layer_type"] == "lstm":
-                    #         self.recurrent_cell[0][:, w] = hxs
-                    #         self.recurrent_cell[1][:, w] = cxs
+                    if self.recurrence is not None:
+                        hxs, cxs = self.model.init_recurrent_cell_states(1, self.mini_batch_device)
+                        if self.recurrence["layer_type"] == "gru":
+                            # Warm Up recurrent cell
+                            self.recurrent_cell[:, w] = self.model.warm_up_hidden_state(self.vis_obs, self.vec_obs, hxs, self.recurrence["warm_up"], self.mini_batch_device)
+                        elif self.recurrence["layer_type"] == "lstm":
+                            vis_obs = np.expand_dims(self.vis_obs[w], 0) if self.vis_obs is not None else None
+                            vec_obs = np.expand_dims(self.vec_obs[w], 0) if self.vec_obs is not None else None
+                            recurrent_cell = self.model.warm_up_hidden_state(vis_obs, vec_obs, (hxs, cxs), self.recurrence["warm_up"], self.mini_batch_device)
+                            self.recurrent_cell[0][:, w] = recurrent_cell[0]
+                            self.recurrent_cell[1][:, w] = recurrent_cell[1]                         
+
+                        
                             
         # Calculate advantages
         _, last_value, _ = self.model(self.vis_obs, self.vec_obs, self.recurrent_cell, device)

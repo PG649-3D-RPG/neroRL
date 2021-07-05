@@ -250,3 +250,8 @@ class OTCModel(nn.Module):
         """
         self.mean_hxs = mean_hxs
         self.mean_cxs = mean_cxs
+
+    def warm_up_hidden_state(self, vis_obs:np.ndarray, vec_obs:np.ndarray, recurrent_cell, num_turns:int, device:torch.device):
+        for _ in range(num_turns):
+            _, _, recurrent_cell = self(vis_obs, vec_obs, recurrent_cell, device)
+        return recurrent_cell
