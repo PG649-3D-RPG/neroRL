@@ -23,13 +23,28 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         """
         ActorCriticBase.__init__(self, recurrence, config)
 
+        # In the case of disabling the recurrent layer of the value function, the hidden state of the actor is added to the
+        # value functions observation space
+        if recurrence is not None:
+            if recurrence["layer_type"] == "gru":
+                additional_vec_features = recurrence["hidden_state_size"]
+            elif recurrence["layer_type"] == "lstm":
+                additional_vec_features = recurrence["hidden_state_size"] * 2
+
+        if vec_obs_shape is None:
+            v_vec_obs_shape = (additional_vec_features,)
+        else:
+            v_vec_obs_shape = (vec_obs_shape[0] + additional_vec_features,)
+
+        self.vf_no_recurrence = True
+    
         # Members for using a recurrent policy
         self.mean_hxs = np.zeros((self.recurrence["hidden_state_size"], 2), dtype=np.float32) if recurrence is not None else None
         self.mean_cxs = np.zeros((self.recurrence["hidden_state_size"], 2), dtype=np.float32) if recurrence is not None else None
 
         # Create the base models
         self.actor_vis_encoder, self.actor_vec_encoder, self.actor_recurrent_layer, self.actor_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
-        self.critic_vis_encoder, self.critic_vec_encoder, self.critic_recurrent_layer, self.critic_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
+        self.critic_vis_encoder, self.critic_vec_encoder, self.critic_recurrent_layer, self.critic_body = self.create_base_model(config, vis_obs_space, v_vec_obs_shape, self.vf_no_recurrence)
 
         # Policy head/output
         self.actor_policy = MultiDiscreteActionPolicy(in_features = self.out_features_body, action_space_shape = action_space_shape, activ_fn = self.activ_fn)
@@ -80,9 +95,16 @@ class ActorCriticSeperateWeights(ActorCriticBase):
             if vec_obs is not None:
                 # Convert vec_obs to tensor and forward vector observation encoder
                 vec_obs = torch.tensor(vec_obs, dtype=torch.float32, device=device)
-                h_vec_actor, h_vec_critic = self.actor_vec_encoder(vec_obs), self.critic_vec_encoder(vec_obs)
+                # Concatenate the actors recurrent cell
+                vec_obs_vf = torch.cat(recurrent_cell, 2).squeeze()
+                h_vec_actor, h_vec_critic = self.actor_vec_encoder(vec_obs), self.critic_vec_encoder(vec_obs_vf)
                 # Add vector observation to the flattened output of the visual encoder if available
                 h_actor, h_critic = torch.cat((h_actor, h_vec_actor), 1), torch.cat((h_critic, h_vec_critic), 1)
+            else:
+                # feed only hidden state of actor to the critic's vec encoder
+                vec_obs_vf = torch.cat(recurrent_cell, 2).squeeze()
+                h_vec_critic = self.critic_vec_encoder(vec_obs_vf)
+                h_critic = torch.cat((h_critic, h_vec_critic), 1)
         else:
             # Convert vec_obs to tensor and forward vector observation encoder
             h_actor, h_critic = torch.tensor(vec_obs, dtype=torch.float32, device=device), torch.tensor(vec_obs, dtype=torch.float32, device=device)
@@ -90,10 +112,12 @@ class ActorCriticSeperateWeights(ActorCriticBase):
 
         # Forward reccurent layer (GRU or LSTM) if available
         if self.recurrence is not None:
-            (actor_recurrent_cell, critic_recurrent_cell) = self._unpack_recurrent_cell(recurrent_cell)
+            # (actor_recurrent_cell, critic_recurrent_cell) = self._unpack_recurrent_cell(recurrent_cell)
 
-            h_actor, actor_recurrent_cell = self.actor_recurrent_layer(h_actor, actor_recurrent_cell, sequence_length)
-            h_critic, critic_recurrent_cell = self.critic_recurrent_layer(h_critic, critic_recurrent_cell, sequence_length)
+            # forward actor recurrent layer only
+            h_actor, actor_recurrent_cell = self.actor_recurrent_layer(h_actor, recurrent_cell, sequence_length)
+            # if not self.vf_no_recurrence:
+            #     h_critic, critic_recurrent_cell = self.critic_recurrent_layer(h_critic, critic_recurrent_cell, sequence_length)
 
         # Feed network body
         h_actor, h_critic = self.actor_body(h_actor), self.critic_body(h_critic)
@@ -109,10 +133,10 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         # Output: Policy
         pi = self.actor_policy(h_actor)
         
-        if self.recurrence is not None:
-            recurrent_cell = self._pack_recurrent_cell(actor_recurrent_cell, critic_recurrent_cell, device)
+        # if self.recurrence is not None:
+        #     recurrent_cell = self._pack_recurrent_cell(actor_recurrent_cell, critic_recurrent_cell, device)
 
-        return pi, value, recurrent_cell, gae
+        return pi, value, actor_recurrent_cell, gae
 
     def init_recurrent_cell_states(self, num_sequences, device):
         """Initializes the recurrent cell states (hxs, cxs) based on the configured method and the used recurrent layer type.
@@ -130,13 +154,13 @@ class ActorCriticSeperateWeights(ActorCriticBase):
             {tuple} -- Depending on the used recurrent layer type, just hidden states (gru) or both hidden and cell states are returned using initial values.
         """
         actor_recurrent_cell = ActorCriticBase.init_recurrent_cell_states(self, num_sequences, device)
-        critic_recurrent_cell = ActorCriticBase.init_recurrent_cell_states(self, num_sequences, device)
+        # critic_recurrent_cell = ActorCriticBase.init_recurrent_cell_states(self, num_sequences, device)
 
-        packed_recurrent_cell = self._pack_recurrent_cell(actor_recurrent_cell, critic_recurrent_cell, device)
+        # packed_recurrent_cell = self._pack_recurrent_cell(actor_recurrent_cell, critic_recurrent_cell, device)
         # (hxs, cxs) is expected to be returned. But if we use GRU then pack_recurrent_cell just returns hxs so we need to zip the recurrent cell with None to return (hxs, None)
-        recurrent_cell = packed_recurrent_cell if self.recurrence["layer_type"] == "lstm" else (packed_recurrent_cell, None)
+        # recurrent_cell = packed_recurrent_cell if self.recurrence["layer_type"] == "lstm" else (packed_recurrent_cell, None)
 
-        return recurrent_cell 
+        return actor_recurrent_cell 
 
     def _pack_recurrent_cell(self, actor_recurrent_cell, critic_recurrent_cell, device):
         """ 

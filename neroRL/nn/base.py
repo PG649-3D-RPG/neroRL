@@ -33,7 +33,7 @@ class ActorCriticBase(Module):
         # Set activation function
         self.activ_fn = self.get_activation_function(config)
 
-    def create_base_model(self, config, vis_obs_space, vec_obs_shape):
+    def create_base_model(self, config, vis_obs_space, vec_obs_shape, no_recurrence = False):
         """
         Creates and returns the components of a base model, which consists of:
             - a visual encoder,
@@ -68,6 +68,8 @@ class ActorCriticBase(Module):
                 out_features = config["num_vec_encoder_units"] if config["vec_encoder"] != "none" else vec_obs_shape[0]
                 vec_encoder = self.create_vec_encoder(config, vec_obs_shape[0], out_features)
                 in_features_next_layer = in_features_next_layer + out_features
+                print("vec encoder out features")
+                print(out_features)
         else:
             # Case: only vector observation is available
             # Vector observation encoder
@@ -76,12 +78,14 @@ class ActorCriticBase(Module):
             in_features_next_layer = out_features
 
         # Recurrent layer (GRU or LSTM)
-        if self.recurrence is not None:
+        if self.recurrence is not None and not no_recurrence:
             recurrent_layer = self.create_recurrent_layer(self.recurrence, in_features_next_layer)
             in_features_next_layer = self.recurrence["hidden_state_size"]
         
         # Network body
         out_features = config["num_hidden_units"]
+        print("in features body")
+        print(in_features_next_layer)
         body = self.create_body(config, in_features_next_layer, out_features)
 
         return vis_encoder, vec_encoder, recurrent_layer, body

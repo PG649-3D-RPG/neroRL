@@ -37,6 +37,7 @@ class Buffer():
         else:
             self.vec_obs = None
         
+        share_parameters = True
         if share_parameters:
             self.hxs = np.zeros((num_workers, worker_steps, recurrence["hidden_state_size"]), dtype=np.float32) if recurrence is not None else None
             self.cxs = np.zeros((num_workers, worker_steps, recurrence["hidden_state_size"]), dtype=np.float32) if recurrence is not None else None
