@@ -41,7 +41,7 @@ class MultiDiscreteActionPolicy(Module):
 
 class ValueEstimator(Module):
     """Estimation of the value function as part of the agnet's critic"""
-    def __init__(self, in_features, activ_fn):
+    def __init__(self, in_features, activ_fn, spectral_layer_normalization = False):
         """
         Arguments:
             in_features {int} -- Number of to be fed features
@@ -53,6 +53,8 @@ class ValueEstimator(Module):
         # Linear layer before head
         self.linear = nn.Linear(in_features=in_features, out_features=512)
         nn.init.orthogonal_(self.linear.weight, np.sqrt(2))
+        if spectral_layer_normalization:
+            self.linear = nn.utils.spectral_norm(self.linear)
         # Value head
         self.value = nn.Linear(in_features=512, out_features=1)
         nn.init.orthogonal_(self.value.weight, 1)

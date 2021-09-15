@@ -33,7 +33,7 @@ class ActorCriticBase(Module):
         # Set activation function
         self.activ_fn = self.get_activation_function(config)
 
-    def create_base_model(self, config, vis_obs_space, vec_obs_shape):
+    def create_base_model(self, config, vis_obs_space, vec_obs_shape, spectral_layer_normalization = False):
         """
         Creates and returns the components of a base model, which consists of:
             - a visual encoder,
@@ -54,7 +54,7 @@ class ActorCriticBase(Module):
 
         # Observation encoder
         if vis_obs_space is not None:
-            vis_encoder = self.create_vis_encoder(config, vis_obs_space)
+            vis_encoder = self.create_vis_encoder(config, vis_obs_space, spectral_layer_normalization)
 
             # Case: visual observation available
             vis_obs_shape = vis_obs_space.shape
@@ -66,23 +66,23 @@ class ActorCriticBase(Module):
             if vec_obs_shape is not None:
                 # Case: vector observation is also available
                 out_features = config["num_vec_encoder_units"] if config["vec_encoder"] != "none" else vec_obs_shape[0]
-                vec_encoder = self.create_vec_encoder(config, vec_obs_shape[0], out_features)
+                vec_encoder = self.create_vec_encoder(config, vec_obs_shape[0], out_features, spectral_layer_normalization)
                 in_features_next_layer = in_features_next_layer + out_features
         else:
             # Case: only vector observation is available
             # Vector observation encoder
             out_features = config["num_vec_encoder_units"] if config["vec_encoder"] != "none" else vec_obs_shape[0]
-            vec_encoder = self.create_vec_encoder(config, vec_obs_shape[0], out_features)
+            vec_encoder = self.create_vec_encoder(config, vec_obs_shape[0], out_features, spectral_layer_normalization)
             in_features_next_layer = out_features
 
         # Recurrent layer (GRU or LSTM)
         if self.recurrence is not None:
-            recurrent_layer = self.create_recurrent_layer(self.recurrence, in_features_next_layer)
+            recurrent_layer = self.create_recurrent_layer(self.recurrence, in_features_next_layer, spectral_layer_normalization)
             in_features_next_layer = self.recurrence["hidden_state_size"]
         
         # Network body
         out_features = config["num_hidden_units"]
-        body = self.create_body(config, in_features_next_layer, out_features)
+        body = self.create_body(config, in_features_next_layer, out_features, spectral_layer_normalization)
 
         return vis_encoder, vec_encoder, recurrent_layer, body
 
@@ -152,7 +152,7 @@ class ActorCriticBase(Module):
         elif config["activation"] == "swish":
             return nn.SiLU()
 
-    def create_vis_encoder(self, config, vis_obs_space):
+    def create_vis_encoder(self, config, vis_obs_space, spectral_layer_normalization = False):
         """Creates and returns a new instance of the visual encoder based on the model config.
 
         Arguments:
@@ -163,9 +163,9 @@ class ActorCriticBase(Module):
             {Module} -- The created visual encoder
         """
         if config["vis_encoder"] == "cnn":
-            return CNNEncoder(vis_obs_space, config, self.activ_fn)
+            return CNNEncoder(vis_obs_space, config, self.activ_fn, spectral_layer_normalization)
 
-    def create_vec_encoder(self, config, in_features, out_features):
+    def create_vec_encoder(self, config, in_features, out_features, spectral_layer_normalization = False):
         """Creates and returns a new instance of the vector encoder based on the model config.
 
         Arguments:
@@ -177,11 +177,14 @@ class ActorCriticBase(Module):
             {Module} -- The created vector envoder
         """
         if config["vec_encoder"] == "linear":
-            return Sequential(nn.Linear(in_features, out_features), self.activ_fn)
+            if spectral_layer_normalization:
+                return Sequential(nn.utils.spectral_norm(nn.Linear(in_features, out_features)), self.activ_fn)
+            else:
+                return Sequential(nn.Linear(in_features, out_features), self.activ_fn)
         elif config["vec_encoder"] == "none":
             return Sequential()
 
-    def create_body(self, config, in_features, out_features):
+    def create_body(self, config, in_features, out_features, spectral_layer_normalization = False):
         """Creates and returns a new instance of the model body based on the model config.
 
         Arguments:
@@ -194,9 +197,9 @@ class ActorCriticBase(Module):
         """
         self.out_features_body = out_features
         if config["hidden_layer"] == "default":
-            return HiddenLayer(self.activ_fn, config["num_hidden_layers"], in_features, out_features)
+            return HiddenLayer(self.activ_fn, config["num_hidden_layers"], in_features, out_features, spectral_layer_normalization)
     
-    def create_recurrent_layer(self, recurrence, input_shape):
+    def create_recurrent_layer(self, recurrence, input_shape, spectral_layer_normalization = False):
         """Creates and returns a new instance of the recurrent layer based on the recurrence config.
 
         Arguments:
@@ -207,9 +210,9 @@ class ActorCriticBase(Module):
             {Module} -- The created recurrent layer
         """
         if recurrence["layer_type"] == "gru":
-            return GRU(input_shape, recurrence["hidden_state_size"])
+            return GRU(input_shape, recurrence["hidden_state_size"], spectral_layer_normalization)
         elif recurrence["layer_type"] == "lstm":
-            return LSTM(input_shape, recurrence["hidden_state_size"])
+            return LSTM(input_shape, recurrence["hidden_state_size"], spectral_layer_normalization)
 
     def get_vis_enc_output(self, vis_encoder, shape):
         """Computes the output size of the visual encoder by feeding a dummy tensor.

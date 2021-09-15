@@ -9,7 +9,7 @@ class CNNEncoder(Module):
     """
     A simple three layer CNN which serves as a visual encoder.
     """
-    def __init__(self, vis_obs_space, config, activ_fn):
+    def __init__(self, vis_obs_space, config, activ_fn, spectral_layer_normalization = False):
         """Initializes a three layer convolutional neural network.
 
         Arguments:
@@ -30,6 +30,8 @@ class CNNEncoder(Module):
                             stride=4,
                             padding=0)
         nn.init.orthogonal_(self.conv1.weight, np.sqrt(2))
+        if spectral_layer_normalization:
+            self.conv1 = nn.utils.spectral_norm(self.conv1)
 
         self.conv2 = nn.Conv2d(in_channels=32,
                             out_channels=64,
@@ -37,6 +39,8 @@ class CNNEncoder(Module):
                             stride=2,
                             padding=0)
         nn.init.orthogonal_(self.conv2.weight, np.sqrt(2))
+        if spectral_layer_normalization:
+            self.conv2 = nn.utils.spectral_norm(self.conv2)
 
         self.conv3 = nn.Conv2d(in_channels=64,
                             out_channels=64,
@@ -44,6 +48,8 @@ class CNNEncoder(Module):
                             stride=1,
                             padding=0)
         nn.init.orthogonal_(self.conv3.weight, np.sqrt(2))
+        if spectral_layer_normalization:
+            self.conv3 = nn.utils.spectral_norm(self.conv3)
 
         # Compute the output size of the encoder
         self.conv_enc_size = self.get_enc_output(vis_obs_shape)

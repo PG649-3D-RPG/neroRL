@@ -7,7 +7,7 @@ class HiddenLayer(Module):
     """
     A flexibal network body with a variable number of layers.
     """
-    def __init__(self, activ_fn, num_hidden_layers, in_features, out_features):
+    def __init__(self, activ_fn, num_hidden_layers, in_features, out_features, spectral_layer_normalization = False):
         """Initializes the hidden layer.
         
         Arguments:
@@ -26,7 +26,10 @@ class HiddenLayer(Module):
         # Collect the (possible) linear layer(s) of the model in a list
         hidden_layer_modules = []
         for _ in range(num_hidden_layers):
-            linear_layer = nn.Linear(in_features=in_features, out_features=out_features)
+            if spectral_layer_normalization:
+                linear_layer = nn.utils.spectral_norm(nn.Linear(in_features=in_features, out_features=out_features))
+            else:
+                linear_layer = nn.Linear(in_features=in_features, out_features=out_features)
             nn.init.orthogonal_(linear_layer.weight, np.sqrt(2))
             hidden_layer_modules.append(linear_layer)
             hidden_layer_modules.append(activ_fn) # add activation function

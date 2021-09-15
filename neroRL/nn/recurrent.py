@@ -7,7 +7,7 @@ class GRU(Module):
     """
     A single-layer gated recurrent unit (GRU) module.
     """
-    def __init__(self, input_shape, hidden_state_size):
+    def __init__(self, input_shape, hidden_state_size, spectral_layer_normalization = False):
         """
         Initializes the gated recurrent unit.
 
@@ -23,6 +23,8 @@ class GRU(Module):
                 nn.init.constant_(param, 0)
             elif "weight" in name:
                 nn.init.orthogonal_(param, np.sqrt(2))
+        # if spectral_layer_normalization:
+        #     self.recurrent_layer = nn.utils.spectral_norm(self.recurrent_layer)
 
     def forward(self, h, recurrent_cell, sequence_length):
         """Forward pass of the model
@@ -58,7 +60,7 @@ class LSTM(Module):
     """
     A single-layer long short-term memory (LSTM) module.
     """
-    def __init__(self, input_shape, hidden_state_size):
+    def __init__(self, input_shape, hidden_state_size, spectral_layer_normalization = False):
         """
         Initializes the long short-term memory network.
 
@@ -74,6 +76,8 @@ class LSTM(Module):
                 nn.init.constant_(param, 0)
             elif "weight" in name:
                 nn.init.orthogonal_(param, np.sqrt(2))
+        # if spectral_layer_normalization:
+        #     self.recurrent_layer = nn.utils.spectral_norm(self.recurrent_layer)
 
     def forward(self, h, recurrent_cell, sequence_length):
         """Forward pass of the model
