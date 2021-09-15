@@ -127,13 +127,15 @@ class DecoupledPPOTrainer(BaseTrainer):
                 recurrent_cell = samples["hxs"].unsqueeze(0)
             elif self.recurrence["layer_type"] == "lstm":
                 recurrent_cell = (samples["hxs"].unsqueeze(0), samples["cxs"].unsqueeze(0))
-        
+
         policy, _, _, gae = self.model(samples["vis_obs"] if self.visual_observation_space is not None else None,
                                     samples["vec_obs"] if self.vector_observation_space is not None else None,
                                     recurrent_cell,
                                     self.device,
                                     self.sampler.buffer.actual_sequence_length,
-                                    samples["actions"])
+                                    samples["actions"],
+                                    samples["hxs_"],
+                                    samples["cxs_"])
 
         # Policy Loss
         # Retrieve and process log_probs from each policy branch
@@ -210,7 +212,10 @@ class DecoupledPPOTrainer(BaseTrainer):
                                     samples["vec_obs"] if self.vector_observation_space is not None else None,
                                     recurrent_cell,
                                     self.device,
-                                    self.sampler.buffer.actual_sequence_length)
+                                    self.sampler.buffer.actual_sequence_length,
+                                    None,
+                                    samples["hxs_"],
+                                    samples["cxs_"])
 
         sampled_return = samples["values"] + samples["advantages"]
         clipped_value = samples["values"] + (value - samples["values"]).clamp(min=-self.value_clip_range, max=self.value_clip_range)

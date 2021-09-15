@@ -70,7 +70,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
             "critic_head": self.critic
         }
 
-    def forward(self, vis_obs, vec_obs, recurrent_cell, device, sequence_length = 1, actions = None):
+    def forward(self, vis_obs, vec_obs, recurrent_cell, device, sequence_length = 1, actions = None, hxs_ = None, cxs_ = None):
         """Forward pass of the model
 
         Arguments:
@@ -102,9 +102,14 @@ class ActorCriticSeperateWeights(ActorCriticBase):
                 h_actor, h_critic = torch.cat((h_actor, h_vec_actor), 1), torch.cat((h_critic, h_vec_critic), 1)
             else:
                 # feed only hidden state of actor to the critic's vec encoder
-                vec_obs_vf = torch.cat(recurrent_cell, 2).squeeze()
-                h_vec_critic = self.critic_vec_encoder(vec_obs_vf)
-                h_critic = torch.cat((h_critic, h_vec_critic), 1)
+                if hxs_ is None and cxs_ is None:
+                    vec_obs_vf = torch.cat(recurrent_cell, 2).squeeze()
+                    h_vec_critic = self.critic_vec_encoder(vec_obs_vf)
+                    h_critic = torch.cat((h_critic, h_vec_critic), 1)
+                else:
+                    vec_obs_vf = torch.cat((hxs_, cxs_), 1)
+                    h_vec_critic = self.critic_vec_encoder(vec_obs_vf)
+                    h_critic = torch.cat((h_critic, h_vec_critic), 1)
         else:
             # Convert vec_obs to tensor and forward vector observation encoder
             h_actor, h_critic = torch.tensor(vec_obs, dtype=torch.float32, device=device), torch.tensor(vec_obs, dtype=torch.float32, device=device)

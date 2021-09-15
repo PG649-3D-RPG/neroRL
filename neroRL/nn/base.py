@@ -68,8 +68,6 @@ class ActorCriticBase(Module):
                 out_features = config["num_vec_encoder_units"] if config["vec_encoder"] != "none" else vec_obs_shape[0]
                 vec_encoder = self.create_vec_encoder(config, vec_obs_shape[0], out_features)
                 in_features_next_layer = in_features_next_layer + out_features
-                print("vec encoder out features")
-                print(out_features)
         else:
             # Case: only vector observation is available
             # Vector observation encoder
@@ -84,8 +82,6 @@ class ActorCriticBase(Module):
         
         # Network body
         out_features = config["num_hidden_units"]
-        print("in features body")
-        print(in_features_next_layer)
         body = self.create_body(config, in_features_next_layer, out_features)
 
         return vis_encoder, vec_encoder, recurrent_layer, body

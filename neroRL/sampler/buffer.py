@@ -95,8 +95,10 @@ class Buffer():
         if self.recurrence is not None:
             # Add collected recurrent cell states to the dictionary
             samples["hxs"] =  self.hxs
+            samples["hxs_"] =  np.array(self.hxs, copy=True)
             if self.recurrence["layer_type"] == "lstm":
                 samples["cxs"] = self.cxs
+                samples["cxs_"] =  np.array(self.cxs, copy=True)
 
             # Split data into sequences and apply zero-padding
             # Retrieve the indices of dones as these are the last step of a whole episode
@@ -148,6 +150,8 @@ class Buffer():
         for key, value in samples.items():
             if not key == "hxs" and not key == "cxs":
                 value = value.reshape(value.shape[0] * value.shape[1], *value.shape[2:])
+            # else:
+            #     self.samples_flat[key + "_"] = torch.tensor(value, dtype = torch.float32, device = self.device)
             self.samples_flat[key] = torch.tensor(value, dtype = torch.float32, device = self.device)
 
     def _pad_sequence(self, sequence, target_length):
