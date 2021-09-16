@@ -135,7 +135,7 @@ class DecoupledPPOTrainer(BaseTrainer):
                                     self.sampler.buffer.actual_sequence_length,
                                     samples["actions"],
                                     samples["hxs_"],
-                                    samples["cxs_"])
+                                    None)
 
         # Policy Loss
         # Retrieve and process log_probs from each policy branch
@@ -215,7 +215,7 @@ class DecoupledPPOTrainer(BaseTrainer):
                                     self.sampler.buffer.actual_sequence_length,
                                     None,
                                     samples["hxs_"],
-                                    samples["cxs_"])
+                                    None)
 
         sampled_return = samples["values"] + samples["advantages"]
         clipped_value = samples["values"] + (value - samples["values"]).clamp(min=-self.value_clip_range, max=self.value_clip_range)

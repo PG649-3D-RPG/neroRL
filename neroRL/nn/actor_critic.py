@@ -96,7 +96,12 @@ class ActorCriticSeperateWeights(ActorCriticBase):
                 # Convert vec_obs to tensor and forward vector observation encoder
                 vec_obs = torch.tensor(vec_obs, dtype=torch.float32, device=device)
                 # Concatenate the actors recurrent cell
-                vec_obs_vf = torch.cat(recurrent_cell, 2).squeeze()
+                if hxs_ is None:
+                    vec_obs_vf = recurrent_cell.squeeze()
+                    vec_obs_vf = torch.cat((vec_obs, vec_obs_vf), 1)
+                else:
+                    vec_obs_vf = hxs_
+                    vec_obs_vf = torch.cat((vec_obs, vec_obs_vf), 1)
                 h_vec_actor, h_vec_critic = self.actor_vec_encoder(vec_obs), self.critic_vec_encoder(vec_obs_vf)
                 # Add vector observation to the flattened output of the visual encoder if available
                 h_actor, h_critic = torch.cat((h_actor, h_vec_actor), 1), torch.cat((h_critic, h_vec_critic), 1)
