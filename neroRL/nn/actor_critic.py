@@ -279,7 +279,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
         self.share_parameters = True
 
         # Create the base model
-        self.vis_encoder, self.vec_encoder, self.recurrent_layer, self.body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
+        self.vis_encoder, self.vec_encoder, self.recurrent_layer, self.transformer_encoder, self.body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
 
         # Policy head/output
         self.actor_policy = MultiDiscreteActionPolicy(self.out_features_body, action_space_shape, self.activ_fn)
@@ -325,6 +325,17 @@ class ActorCriticSharedWeights(ActorCriticBase):
         # Forward reccurent layer (GRU or LSTM) if available
         if self.recurrence is not None:
             h, recurrent_cell = self.recurrent_layer(h, recurrent_cell, sequence_length)
+            
+        # Tranformer
+        h_shape = tuple(h.size())
+        
+        # Reshape the to be fed data to batch_size, sequence_length, data
+        h = h.reshape((h_shape[0] // sequence_length), sequence_length, h_shape[1])
+        h = self.transformer_encoder(h)
+        
+        # Reshape to the original tensor size
+        h_shape = tuple(h.size())
+        h = h.reshape(h_shape[0] * h_shape[1], h_shape[2])
 
         # Feed network body
         h = self.body(h)

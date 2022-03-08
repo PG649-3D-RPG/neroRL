@@ -80,12 +80,14 @@ class ActorCriticBase(Module):
             out_features = self.recurrence["hidden_state_size"]
             recurrent_layer = self.create_recurrent_layer(self.recurrence, in_features_next_layer, out_features)
             in_features_next_layer = out_features
+            
+        transformer_encoder = nn.TransformerEncoderLayer(d_model=in_features_next_layer, nhead=8, batch_first = True)
         
         # Network body
         out_features = config["num_hidden_units"]
         body = self.create_body(config, in_features_next_layer, out_features)
 
-        return vis_encoder, vec_encoder, recurrent_layer, body
+        return vis_encoder, vec_encoder, recurrent_layer, transformer_encoder, body
 
     def init_recurrent_cell_states(self, num_sequences, device):
         """Initializes the recurrent cell states (hxs, cxs) based on the configured method and the used recurrent layer type.
