@@ -225,7 +225,7 @@ class ResLSTM(Module):
 class TransformerBuffer():
     def __init__(self, num_workers) -> None:
         self.buffer = [[] for _ in range(num_workers)]
-        self.max_size = 0
+        self.max_size = 25
         self.is_empty = True
         
     def reset(self, dones):
@@ -246,6 +246,7 @@ class TransformerBuffer():
         self.reset(dones)
         for i in range(len(data)):
             self.buffer[i].append(data[i])
+            self.buffer[i] = self.buffer[i][-self.max_size:]
     
     def get_episode(self, i):
         return torch.stack(self.buffer[i]).unsqueeze(0)
