@@ -226,7 +226,7 @@ class TransformerBuffer():
     def __init__(self, num_workers) -> None:
         self.buffer = [[] for _ in range(num_workers)]
         self.max_size = 0
-        self.contrains_data = False
+        self.is_empty = True
         
     def reset(self, dones):
         if dones is None:
@@ -236,18 +236,19 @@ class TransformerBuffer():
                 self.buffer[i] = []
     
     def reset_all(self):
-        if self.contrains_data:
-            self.buffer = [[] for _ in range(len(self.buffer))]
-            self.contrains_data = False
+        if self.is_empty:
+            return
+        self.buffer = [[] for _ in range(len(self.buffer))]
+        self.contains_data = True
     
     def append(self, data, dones):
-        self.contrains_data = True
+        self.is_empty = False
         self.reset(dones)
         for i in range(len(data)):
             self.buffer[i].append(data[i])
     
     def get_episode(self, i):
-        return torch.stack(self.buffer[i]).unsqueeze(1)
+        return torch.stack(self.buffer[i]).unsqueeze(0)
     
 
 class TransformerEncoder(Module):
@@ -265,7 +266,6 @@ class TransformerEncoder(Module):
                 episode = self.buffer.get_episode(i)
                 h = self.transformer_encoder(episode)[0, -1, :]
                 h_out.append(h)
-            
                 
             return torch.stack(h_out)
         else:
