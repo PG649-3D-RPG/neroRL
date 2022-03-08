@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 from torch import nn
 
 from neroRL.nn.module import Module
@@ -222,7 +223,62 @@ class ResLSTM(Module):
         return h, recurrent_cell
     
 class TransformerBuffer():
-    pass
+    def __init__(self, num_workers) -> None:
+        self.buffer = [[] for _ in range(num_workers)]
+        self.max_size = 0
+        self.contrains_data = False
+        
+    def reset(self, dones):
+        if dones is None:
+            return
+        for i in range(len(dones)):
+            if dones[i]:
+                self.buffer[i] = []
+    
+    def reset_all(self):
+        if self.contrains_data:
+            self.buffer = [[] for _ in range(len(self.buffer))]
+            self.contrains_data = False
+    
+    def append(self, data, dones):
+        self.contrains_data = True
+        self.reset(dones)
+        for i in range(len(data)):
+            self.buffer[i].append(data[i])
+    
+    def get_episode(self, i):
+        return torch.stack(self.buffer[i]).unsqueeze(1)
+    
 
-class TransFormerEncoder(Module):
-    pass
+class TransformerEncoder(Module):
+    def __init__(self, input_features, num_workers):
+        super().__init__()
+        self.transformer_encoder = nn.TransformerEncoderLayer(d_model=input_features, nhead=8, batch_first = True)
+        self.num_workers = num_workers
+        self.buffer = TransformerBuffer(self.num_workers)
+        
+    def forward(self, h, sequence_length, dones):
+        if sequence_length == 1: 
+            self.buffer.append(h, dones)
+            h_out = []
+            for i in range(self.num_workers):
+                episode = self.buffer.get_episode(i)
+                h = self.transformer_encoder(episode)[0, -1, :]
+                h_out.append(h)
+            
+                
+            return torch.stack(h_out)
+        else:
+            self.buffer.reset_all()
+            h_shape = tuple(h.size())
+            
+            # Reshape the to be fed data to batch_size, sequence_length, data
+            h = h.reshape((h_shape[0] // sequence_length), sequence_length, h_shape[1])
+            h = self.transformer_encoder(h)
+            
+            # Reshape to the original tensor size
+            h_shape = tuple(h.size())
+            h = h.reshape(h_shape[0] * h_shape[1], h_shape[2])
+            
+        return h    
+    

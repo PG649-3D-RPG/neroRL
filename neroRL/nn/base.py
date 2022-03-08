@@ -3,7 +3,7 @@ import torch
 from torch import nn
 
 from neroRL.nn.encoder import CNNEncoder, ResCNN, LinVecEncoder
-from neroRL.nn.recurrent import GRU, LSTM, ResLSTM, ResGRU
+from neroRL.nn.recurrent import GRU, LSTM, ResLSTM, ResGRU, TransformerEncoder
 from neroRL.nn.body import HiddenLayer
 from neroRL.nn.module import Module, Sequential
 
@@ -71,17 +71,17 @@ class ActorCriticBase(Module):
         else:
             # Case: only vector observation is available
             # Vector observation encoder
-            out_features = config["num_vec_encoder_units"] if config["vec_encoder"] != "none" else vec_obs_shape[0]
+            out_features = self.recurrence["hidden_state_size"]
             vec_encoder = self.create_vec_encoder(config, vec_obs_shape[0], out_features)
             in_features_next_layer = out_features
 
         # Recurrent layer (GRU or LSTM)
-        if self.recurrence is not None:
-            out_features = self.recurrence["hidden_state_size"]
-            recurrent_layer = self.create_recurrent_layer(self.recurrence, in_features_next_layer, out_features)
-            in_features_next_layer = out_features
+        #if self.recurrence is not None:
+        #    out_features = self.recurrence["hidden_state_size"]
+        #    recurrent_layer = self.create_recurrent_layer(self.recurrence, in_features_next_layer, out_features)
+        #    in_features_next_layer = out_features
             
-        transformer_encoder = nn.TransformerEncoderLayer(d_model=in_features_next_layer, nhead=8, batch_first = True)
+        transformer_encoder = TransformerEncoder(in_features_next_layer, 16)
         
         # Network body
         out_features = config["num_hidden_units"]
