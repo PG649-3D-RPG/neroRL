@@ -220,3 +220,9 @@ class ResLSTM(Module):
         # Residual connection
         h = h + h_identity
         return h, recurrent_cell
+    
+class TransformerBuffer():
+    pass
+
+class TransFormerEncoder(Module):
+    pass
