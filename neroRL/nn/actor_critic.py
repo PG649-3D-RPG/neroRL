@@ -326,17 +326,21 @@ class ActorCriticSharedWeights(ActorCriticBase):
         if self.recurrence is not None:
             h, recurrent_cell = self.recurrent_layer(h, recurrent_cell, sequence_length)
         
-        # TODO: we need the whole sequence while stepping through environment?
         # Tranformer
-        h_shape = tuple(h.size())
-        
-        # Reshape the to be fed data to batch_size, sequence_length, data
-        h = h.reshape((h_shape[0] // sequence_length), sequence_length, h_shape[1])
-        h = self.transformer_encoder(h)
-        
-        # Reshape to the original tensor size
-        h_shape = tuple(h.size())
-        h = h.reshape(h_shape[0] * h_shape[1], h_shape[2])
+        if sequence_length == 1: # TODO: we need the whole sequence while stepping through environment?
+                # Case: sampling training data or model optimization using fake recurrence
+               h = self.transformer_encoder(h.unsqueeze(1))
+               h = h.squeeze(1) # Remove sequence length dimension
+        else:
+            h_shape = tuple(h.size())
+            
+            # Reshape the to be fed data to batch_size, sequence_length, data
+            h = h.reshape((h_shape[0] // sequence_length), sequence_length, h_shape[1])
+            h = self.transformer_encoder(h)
+            
+            # Reshape to the original tensor size
+            h_shape = tuple(h.size())
+            h = h.reshape(h_shape[0] * h_shape[1], h_shape[2])
 
         # Feed network body
         h = self.body(h)
