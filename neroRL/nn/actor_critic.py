@@ -43,6 +43,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
             "actor_vis_encoder": self.actor_vis_encoder,
             "actor_vec_encoder": self.actor_vec_encoder,
             "actor_recurrent_layer": self.actor_recurrent_layer,
+            "actor_transformer_layer": self.actor_transformer_layer,
             "actor_body": self.actor_body,
             "actor_head": self.actor_policy
         }
@@ -51,6 +52,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
             "critic_vis_encoder": self.critic_vis_encoder,
             "critic_vec_encoder": self.critic_vec_encoder,
             "critic_recurrent_layer": self.critic_recurrent_layer,
+            "critic_transformer_layer": self.critic_transformer_layer,
             "critic_body": self.critic_body,
             "critic_head": self.critic
         }
@@ -299,6 +301,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
             "vis_encoder": self.vis_encoder,
             "vec_encoder": self.vec_encoder,
             "recurrent_layer": self.recurrent_layer,
+            "transformer_layer": self.transformer_layer,
             "body": self.body,
             "actor_head": self.actor_policy,
             "critic_head": self.critic
