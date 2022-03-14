@@ -333,7 +333,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
             if self.recurrence["transformer"]:
                 h = self.transformer_layer(h, sequence_length)
             else:
-                h, recurrent_cell = self.critic_recurrent_layer(h, recurrent_cell, sequence_length)
+                h, recurrent_cell = self.recurrent_layer(h, recurrent_cell, sequence_length)
 
         # Feed network body
         h = self.body(h)
