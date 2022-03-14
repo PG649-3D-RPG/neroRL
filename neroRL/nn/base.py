@@ -6,13 +6,14 @@ from neroRL.nn.encoder import CNNEncoder, ResCNN, LinVecEncoder
 from neroRL.nn.recurrent import GRU, LSTM, ResLSTM, ResGRU
 from neroRL.nn.body import HiddenLayer
 from neroRL.nn.module import Module, Sequential
+from neroRL.nn.transformer import TransformerEncoder
 
 class ActorCriticBase(Module):
     """An actor-critic base model which defines the basic components and functionality of the final model:
             - Components: Visual encoder, vector encoder, recurrent layer, body, heads (value, policy, gae)
             - Functionality: Initialization of the recurrent cells and basic model
     """
-    def __init__(self, recurrence, config):
+    def __init__(self, recurrence, transformer, config):
         """Model setup
 
         Arguments:
@@ -29,6 +30,9 @@ class ActorCriticBase(Module):
         self.recurrence = recurrence
         self.mean_hxs = np.zeros(self.recurrence["hidden_state_size"], dtype=np.float32) if recurrence is not None else None
         self.mean_cxs = np.zeros(self.recurrence["hidden_state_size"], dtype=np.float32) if recurrence is not None else None
+        
+        # Members for using a transformer
+        self.transformer = transformer
 
         # Set activation function
         self.activ_fn = self.get_activation_function(config)
@@ -50,7 +54,7 @@ class ActorCriticBase(Module):
         Returns:
             {tuple} -- visual encoder, vector encoder, recurrent layer, body
         """
-        vis_encoder, vec_encoder, recurrent_layer, body = None, None, None, None
+        vis_encoder, vec_encoder, recurrent_layer, transformer_layer, body = None, None, None, None, None
 
         # Observation encoder
         if vis_obs_space is not None:
@@ -80,12 +84,16 @@ class ActorCriticBase(Module):
             out_features = self.recurrence["hidden_state_size"]
             recurrent_layer = self.create_recurrent_layer(self.recurrence, in_features_next_layer, out_features)
             in_features_next_layer = out_features
+            
+        # Transformer layer
+        if self.transformer is not None:
+            transformer_layer = self.create_transformer_layer(self.transformer, in_features_next_layer)
         
         # Network body
         out_features = config["num_hidden_units"]
         body = self.create_body(config, in_features_next_layer, out_features)
 
-        return vis_encoder, vec_encoder, recurrent_layer, body
+        return vis_encoder, vec_encoder, recurrent_layer, transformer_layer, body
 
     def init_recurrent_cell_states(self, num_sequences, device):
         """Initializes the recurrent cell states (hxs, cxs) based on the configured method and the used recurrent layer type.
@@ -218,6 +226,19 @@ class ActorCriticBase(Module):
             if recurrence["residual"]:
                 return ResLSTM(input_shape, hidden_state_size)
             return LSTM(input_shape, hidden_state_size)
+        
+    def create_transformer_layer(self, transformer, in_features):
+        """Creates and returns a new instance of the transformer layer based on the model config.
+
+        Arguments:
+            transformer {dict} -- Transformer config
+            in_features {int} -- Size of input
+
+        Returns:
+            {Module} -- The created transformer layer
+        """
+        if transformer["layer_type"] == "encoder":
+            return TransformerEncoder(in_features, transformer["num_heads"])
 
     def get_vis_enc_output(self, vis_encoder, shape):
         """Computes the output size of the visual encoder by feeding a dummy tensor.

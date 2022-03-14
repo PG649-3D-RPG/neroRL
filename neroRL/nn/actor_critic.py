@@ -10,7 +10,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
             - Visual & vector observation spaces
             - Recurrent polices (either GRU or LSTM)
     """
-    def __init__(self, config, vis_obs_space, vec_obs_shape, action_space_shape, recurrence):
+    def __init__(self, config, vis_obs_space, vec_obs_shape, action_space_shape, recurrence, transformer):
         """Model setup
         
         Arguments:
@@ -21,15 +21,15 @@ class ActorCriticSeperateWeights(ActorCriticBase):
             recurrence {dict} -- None if no recurrent policy is used, otherwise contains relevant details:
                 - layer type {str}, sequence length {int}, hidden state size {int}, hiddens state initialization {str}, reset hidden state {bool}
         """
-        ActorCriticBase.__init__(self, recurrence, config)
+        ActorCriticBase.__init__(self, recurrence, transformer, config)
 
         # Members for using a recurrent policy
         self.mean_hxs = np.zeros((self.recurrence["hidden_state_size"], 2), dtype=np.float32) if recurrence is not None else None
         self.mean_cxs = np.zeros((self.recurrence["hidden_state_size"], 2), dtype=np.float32) if recurrence is not None else None
 
         # Create the base models
-        self.actor_vis_encoder, self.actor_vec_encoder, self.actor_recurrent_layer, self.actor_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
-        self.critic_vis_encoder, self.critic_vec_encoder, self.critic_recurrent_layer, self.critic_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
+        self.actor_vis_encoder, self.actor_vec_encoder, self.actor_recurrent_layer, self.actor_transformer_layer, self.actor_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
+        self.critic_vis_encoder, self.critic_vec_encoder, self.critic_recurrent_layer, self.critic_transformer_layer, self.critic_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
 
         # Policy head/output
         self.actor_policy = MultiDiscreteActionPolicy(in_features = self.out_features_body, action_space_shape = action_space_shape, activ_fn = self.activ_fn)
@@ -104,6 +104,10 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         if self.recurrence is not None:
             h_actor, actor_recurrent_cell = self.actor_recurrent_layer(h_actor, actor_recurrent_cell, sequence_length)
 
+        # Forward transformer layer if available
+        if self.transformer is not None:
+            h_actor = self.actor_transformer_layer(h_actor)
+
         # Feed network body
         h_actor = self.actor_body(h_actor)
 
@@ -131,6 +135,10 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         # Forward reccurent layer (GRU or LSTM) if available
         if self.recurrence is not None:
             h_critic, critic_recurrent_cell = self.critic_recurrent_layer(h_critic, critic_recurrent_cell, sequence_length)
+
+        # Forward transformer layer if available
+        if self.transformer is not None:
+            h_critic = self.critic_transformer_layer(h_critic)
 
         # Feed network body
         h_critic = self.critic_body(h_critic)
@@ -262,7 +270,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
             - Visual & vector observation spaces
             - Recurrent polices (either GRU or LSTM)
     """
-    def __init__(self, config, vis_obs_space, vec_obs_shape, action_space_shape, recurrence):
+    def __init__(self, config, vis_obs_space, vec_obs_shape, action_space_shape, recurrence, transformer):
         """Model setup
 
         Arguments:
@@ -273,13 +281,13 @@ class ActorCriticSharedWeights(ActorCriticBase):
             recurrence {dict} -- None if no recurrent policy is used, otherwise contains relevant detais:
                 - layer type {str}, sequence length {int}, hidden state size {int}, hiddens state initialization {str}, reset hidden state {bool}
         """
-        ActorCriticBase.__init__(self, recurrence, config)
+        ActorCriticBase.__init__(self, recurrence, transformer, config)
 
         # Whether the model uses shared parameters (i.e. weights) or not
         self.share_parameters = True
 
         # Create the base model
-        self.vis_encoder, self.vec_encoder, self.recurrent_layer, self.body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
+        self.vis_encoder, self.vec_encoder, self.recurrent_layer, self.transformer_layer, self.body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
 
         # Policy head/output
         self.actor_policy = MultiDiscreteActionPolicy(self.out_features_body, action_space_shape, self.activ_fn)
@@ -326,6 +334,10 @@ class ActorCriticSharedWeights(ActorCriticBase):
         if self.recurrence is not None:
             h, recurrent_cell = self.recurrent_layer(h, recurrent_cell, sequence_length)
 
+        # Forward transformer if available
+        if self.transformer is not None:
+            h = self.transformer_layer(h, sequence_length)
+
         # Feed network body
         h = self.body(h)
 
@@ -336,7 +348,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
 
         return pi, value, recurrent_cell, None
 
-def create_actor_critic_model(model_config, share_parameters, visual_observation_space, vector_observation_space, action_space_shape, recurrence, device):
+def create_actor_critic_model(model_config, share_parameters, visual_observation_space, vector_observation_space, action_space_shape, recurrence, transformer, device):
     """Creates a shared or non-shared weights actor critic model.
 
     Arguments:
@@ -354,7 +366,7 @@ def create_actor_critic_model(model_config, share_parameters, visual_observation
     """
     if share_parameters: # check if the actor critic model should share its weights
         return ActorCriticSharedWeights(model_config, visual_observation_space, vector_observation_space,
-                            action_space_shape, recurrence).to(device)
+                            action_space_shape, recurrence, transformer).to(device)
     else:
         return ActorCriticSeperateWeights(model_config, visual_observation_space, vector_observation_space,
-                            action_space_shape, recurrence).to(device)
+                            action_space_shape, recurrence, transformer).to(device)
