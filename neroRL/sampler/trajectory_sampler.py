@@ -47,7 +47,7 @@ class TrajectorySampler():
             self.vec_obs = None
 
         # Setup initial recurrent cell
-        if self.recurrence is not None:
+        if self.recurrence is not None and not self.recurrence["transformer"]:
             hxs, cxs = self.model.init_recurrent_cell_states(self.n_workers, self.device)
             if self.recurrence["layer_type"] == "gru":
                 self.recurrent_cell = hxs

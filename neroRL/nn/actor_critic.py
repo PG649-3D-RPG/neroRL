@@ -10,7 +10,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
             - Visual & vector observation spaces
             - Recurrent polices (either GRU or LSTM)
     """
-    def __init__(self, config, vis_obs_space, vec_obs_shape, action_space_shape, recurrence, transformer):
+    def __init__(self, config, vis_obs_space, vec_obs_shape, action_space_shape, recurrence):
         """Model setup
         
         Arguments:
@@ -21,7 +21,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
             recurrence {dict} -- None if no recurrent policy is used, otherwise contains relevant details:
                 - layer type {str}, sequence length {int}, hidden state size {int}, hiddens state initialization {str}, reset hidden state {bool}
         """
-        ActorCriticBase.__init__(self, recurrence, transformer, config)
+        ActorCriticBase.__init__(self, recurrence, config)
 
         # Members for using a recurrent policy
         self.mean_hxs = np.zeros((self.recurrence["hidden_state_size"], 2), dtype=np.float32) if recurrence is not None else None
@@ -102,11 +102,10 @@ class ActorCriticSeperateWeights(ActorCriticBase):
 
         # Forward reccurent layer (GRU or LSTM) if available
         if self.recurrence is not None:
-            h_actor, actor_recurrent_cell = self.actor_recurrent_layer(h_actor, actor_recurrent_cell, sequence_length)
-
-        # Forward transformer layer if available
-        if self.transformer is not None:
-            h_actor = self.actor_transformer_layer(h_actor)
+            if self.recurrence["transformer"]:
+                h_actor = self.actor_transformer_layer(h_actor)
+            else:
+                h_actor, actor_recurrent_cell = self.critic_recurrent_layer(h_actor, actor_recurrent_cell, sequence_length)
 
         # Feed network body
         h_actor = self.actor_body(h_actor)
@@ -132,13 +131,12 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         else:
             h_critic = self.critic_vec_encoder(vec_obs)
 
-        # Forward reccurent layer (GRU or LSTM) if available
+        # Forward reccurent layer (GRU or LSTM or tranformer) if available
         if self.recurrence is not None:
-            h_critic, critic_recurrent_cell = self.critic_recurrent_layer(h_critic, critic_recurrent_cell, sequence_length)
-
-        # Forward transformer layer if available
-        if self.transformer is not None:
-            h_critic = self.critic_transformer_layer(h_critic)
+            if self.recurrence["transformer"]:
+                h_critic = self.critic_transformer_layer(h_critic, sequence_length)
+            else:
+                h_critic, critic_recurrent_cell = self.critic_recurrent_layer(h_critic, critic_recurrent_cell, sequence_length)
 
         # Feed network body
         h_critic = self.critic_body(h_critic)
@@ -270,7 +268,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
             - Visual & vector observation spaces
             - Recurrent polices (either GRU or LSTM)
     """
-    def __init__(self, config, vis_obs_space, vec_obs_shape, action_space_shape, recurrence, transformer):
+    def __init__(self, config, vis_obs_space, vec_obs_shape, action_space_shape, recurrence):
         """Model setup
 
         Arguments:
@@ -281,7 +279,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
             recurrence {dict} -- None if no recurrent policy is used, otherwise contains relevant detais:
                 - layer type {str}, sequence length {int}, hidden state size {int}, hiddens state initialization {str}, reset hidden state {bool}
         """
-        ActorCriticBase.__init__(self, recurrence, transformer, config)
+        ActorCriticBase.__init__(self, recurrence, config)
 
         # Whether the model uses shared parameters (i.e. weights) or not
         self.share_parameters = True
@@ -332,11 +330,10 @@ class ActorCriticSharedWeights(ActorCriticBase):
 
         # Forward reccurent layer (GRU or LSTM) if available
         if self.recurrence is not None:
-            h, recurrent_cell = self.recurrent_layer(h, recurrent_cell, sequence_length)
-
-        # Forward transformer if available
-        if self.transformer is not None:
-            h = self.transformer_layer(h, sequence_length)
+            if self.recurrence["transformer"]:
+                h = self.transformer_layer(h, sequence_length)
+            else:
+                h, recurrent_cell = self.critic_recurrent_layer(h, recurrent_cell, sequence_length)
 
         # Feed network body
         h = self.body(h)
@@ -348,7 +345,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
 
         return pi, value, recurrent_cell, None
 
-def create_actor_critic_model(model_config, share_parameters, visual_observation_space, vector_observation_space, action_space_shape, recurrence, transformer, device):
+def create_actor_critic_model(model_config, share_parameters, visual_observation_space, vector_observation_space, action_space_shape, recurrence, device):
     """Creates a shared or non-shared weights actor critic model.
 
     Arguments:
@@ -366,7 +363,7 @@ def create_actor_critic_model(model_config, share_parameters, visual_observation
     """
     if share_parameters: # check if the actor critic model should share its weights
         return ActorCriticSharedWeights(model_config, visual_observation_space, vector_observation_space,
-                            action_space_shape, recurrence, transformer).to(device)
+                            action_space_shape, recurrence).to(device)
     else:
         return ActorCriticSeperateWeights(model_config, visual_observation_space, vector_observation_space,
-                            action_space_shape, recurrence, transformer).to(device)
+                            action_space_shape, recurrence).to(device)

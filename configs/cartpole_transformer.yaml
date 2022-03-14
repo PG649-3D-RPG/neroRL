@@ -24,7 +24,8 @@ model:
   hidden_layer: "default"
   num_hidden_layers: 1
   num_hidden_units: 512
-  transformer:
+  recurrence:
+    transformer: True
     layer_type: "encoder"
     sequence_length: 8
     num_heads: 8
