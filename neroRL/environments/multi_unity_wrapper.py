@@ -272,6 +272,10 @@ class MultiUnityWrapper(Env):
         vec_obs = np.zeros((self._agent_count, ) + self.vector_observation_space.shape, dtype=np.float32) if self.vector_observation_space else None
         rewards = np.zeros(self._agent_count, dtype=np.float32)
         dones = np.zeros(self._agent_count, dtype=bool)
+
+        num_info = info.agent_id.shape[0]
+        num_terminal = terminal_info.agent_id.shape[0]
+
         for i in range(len(info)):
             if vis_obs is not None:
                 vis_obs[info.agent_id[i]] = info.obs[self._vis_obs_index][i]
@@ -293,7 +297,45 @@ class MultiUnityWrapper(Env):
                         vec_obs[terminal_info.agent_id[i]] = np.concatenate((vec_obs, terminal_info.obs[dim][i]))
             rewards[terminal_info.agent_id[i]] = terminal_info.reward[i]
             dones[terminal_info.agent_id[i]] = True
+        
 
+        if num_info + num_terminal != 16:
+            print("num_info: ", num_info)
+            print(info.agent_id)
+            print("num_terminal: ", num_terminal)
+            print(terminal_info.agent_id)
+
+            # action_tuple = ActionTuple()
+            # act = np.expand_dims(np.array(self.action_space.sample()), 0)
+            # action_tuple.add_discrete(act)
+            # self._env.set_action_for_agent(self._behavior_name, 1, action_tuple)
+            self._env.step()
+            info, terminal_info = self._env.get_steps(self._behavior_name)
+            # action_tuple = ActionTuple()
+            # act = np.expand_dims(np.array(self.action_space.sample()), 0)
+            # action_tuple.add_discrete(act)
+            # self._env.set_action_for_agent(self._behavior_name, 1, action_tuple)
+
+
+            # assumption:
+                # trigger self._env.step() until assertion is true
+            
+            # plug-in unity editor
+                # automatic resets?
+                # do observations match?
+
+
+            print("num_info: ", info.agent_id.shape[0])
+            print(info.agent_id)
+            print("num_terminal: ", terminal_info.agent_id.shape[0])
+            print(terminal_info.agent_id)
+        assert num_info + num_terminal == 16
+
+
+        
+
+        # retrieve agent IDs that are missing
+        # query them again
         return vis_obs, vec_obs, rewards, dones
 
     def _verify_environment(self):

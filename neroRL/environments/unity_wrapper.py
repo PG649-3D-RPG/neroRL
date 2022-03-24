@@ -189,7 +189,7 @@ class UnityWrapper(Env):
         return vis_obs, vec_obs
 
     def step(self, action):
-        """Runs one timestep of the environment"s dynamics.
+        """Runs one timestep of the environment's dynamics.
         Once an episode is done, reset() has to be called manually.
                 
         Arguments:
