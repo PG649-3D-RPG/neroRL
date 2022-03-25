@@ -12,6 +12,8 @@ environment:
     num-seeds: 100
     # Whether to mask the velocity of the cart and the tip of the pole
     mask-velocity: True
+    # Wether to shuffle the observation
+    shuffle-observation: True
 
 model:
   load_model: False
