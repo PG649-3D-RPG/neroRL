@@ -25,7 +25,7 @@ class CartPoleWrapper(Env):
         """
         # Set default reset parameters if none were provided
         if reset_params is None:
-            self._default_reset_params = {"start-seed": 0, "num-seeds": 100, "mask-velocity": False, "shuffle-observation": False}
+            self._default_reset_params = {"start-seed": 0, "num-seeds": 100, "mask-velocity": False, "shuffle-observation": False, "padding": 0}
         else:
             self._default_reset_params = reset_params
 
@@ -38,10 +38,16 @@ class CartPoleWrapper(Env):
 
         # Prepare observation space
         self._vector_observation_space = self._env.observation_space.shape
+        # Add padding if requested to the observation space
+        self._vector_observation_space = (self._vector_observation_space[0] + self._default_reset_params["padding"], )
+        
         # Create mask to hide the velocity of the cart and the pole if requested by the reset params
         self._obs_mask = np.ones(4, dtype=np.float32) if not self._default_reset_params["mask-velocity"] else np.asarray([1,0,1,0], dtype=np.float32)
         # Wether to shuffle the observation
         self._shuffle_observation = self._default_reset_params["shuffle-observation"]
+        
+        # Create padding for the observation if requested by the reset params
+        self._padding = np.zeros(self._default_reset_params["padding"], dtype=np.float32)
 
     @property
     def unwrapped(self):
@@ -102,6 +108,12 @@ class CartPoleWrapper(Env):
         vis_obs = None
         vec_obs = self._env.reset()
         
+        # Mask the velocity of the cart and the pole if requested
+        vec_obs = vec_obs * self._obs_mask
+        
+        # Padd the observation if requested
+        vec_obs = np.concatenate([vec_obs, self._padding])
+        
         # Shuffle vector observation if requested
         if self._shuffle_observation:
             shuffle(vec_obs)
@@ -117,7 +129,7 @@ class CartPoleWrapper(Env):
                 "rewards": [0.0], "actions": [], "frame_rate": 20
             }
 
-        return vis_obs, vec_obs * self._obs_mask
+        return vis_obs, vec_obs
 
     def step(self, action):
         """Runs one timestep of the environment's dynamics.
@@ -138,6 +150,12 @@ class CartPoleWrapper(Env):
         # Retrieve the agent's current observation
         vis_obs = None
         vec_obs = obs
+        
+        # Mask the velocity of the cart and the pole if requested
+        vec_obs = vec_obs * self._obs_mask
+        
+        # Padd the observation if requested
+        vec_obs = np.concatenate([vec_obs, self._padding])
         
         # Shuffle vector observation if requested
         if self._shuffle_observation:
@@ -162,7 +180,7 @@ class CartPoleWrapper(Env):
         else:
             info = None
 
-        return vis_obs, vec_obs * self._obs_mask, reward / 100.0, done, info
+        return vis_obs, vec_obs, reward / 100.0, done, info
 
     def close(self):
         """Shuts down the environment."""
