@@ -12,10 +12,12 @@ environment:
     num-seeds: 100
     # Whether to mask the velocity of the cart and the tip of the pole
     mask-velocity: True
-    # Padding of the observation
-    padding: 0
+    # Random padding of the observation
+    padding: 4
     # Wether to shuffle the observation
     shuffle-observation: True
+    # Wether to add noise to the random padding
+    noise: True
 
 model:
   load_model: False

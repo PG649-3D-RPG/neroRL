@@ -4,7 +4,7 @@ import time
 import random
 from gym import error, spaces
 from neroRL.environments.env import Env
-from numpy.random import shuffle
+from numpy.random import shuffle, permutation, uniform
 
 class CartPoleWrapper(Env):
     """This class wraps Gym CartPole environments.
@@ -25,7 +25,7 @@ class CartPoleWrapper(Env):
         """
         # Set default reset parameters if none were provided
         if reset_params is None:
-            self._default_reset_params = {"start-seed": 0, "num-seeds": 100, "mask-velocity": False, "shuffle-observation": False, "padding": 0}
+            self._default_reset_params = {"start-seed": 0, "num-seeds": 100, "mask-velocity": False, "shuffle-observation": False, "padding": 0, "noise": False}
         else:
             self._default_reset_params = reset_params
 
@@ -45,9 +45,6 @@ class CartPoleWrapper(Env):
         self._obs_mask = np.ones(4, dtype=np.float32) if not self._default_reset_params["mask-velocity"] else np.asarray([1,0,1,0], dtype=np.float32)
         # Wether to shuffle the observation
         self._shuffle_observation = self._default_reset_params["shuffle-observation"]
-        
-        # Create padding for the observation if requested by the reset params
-        self._padding = np.zeros(self._default_reset_params["padding"], dtype=np.float32)
 
     @property
     def unwrapped(self):
@@ -111,8 +108,14 @@ class CartPoleWrapper(Env):
         # Mask the velocity of the cart and the pole if requested
         vec_obs = vec_obs * self._obs_mask
         
-        # Padd the observation if requested
-        vec_obs = np.concatenate([vec_obs, self._padding])
+        # Add random padding and noise if requested to the observation space
+        if self._default_reset_params["padding"] > 0:
+            new_obs_ind = permutation(self._vector_observation_space[0])[:4] # Randomly permute the indices of the observation
+            new_obs_ind.sort() # Sort the indices
+            new_vec_obs = uniform(size=(self._vector_observation_space[0])) # Create a new vector observation
+            new_vec_obs = new_vec_obs * 0 if not self._default_reset_params["noise"] else new_vec_obs # Set the noise to 0 if requested
+            new_vec_obs[new_obs_ind] = vec_obs # Insert the old vector observation at the new indices
+            vec_obs = new_vec_obs # Set the new vector observation
         
         # Shuffle vector observation if requested
         if self._shuffle_observation:
@@ -154,8 +157,14 @@ class CartPoleWrapper(Env):
         # Mask the velocity of the cart and the pole if requested
         vec_obs = vec_obs * self._obs_mask
         
-        # Padd the observation if requested
-        vec_obs = np.concatenate([vec_obs, self._padding])
+        # Add random padding and noise if requested to the observation space
+        if self._default_reset_params["padding"] > 0:
+            new_obs_ind = permutation(self._vector_observation_space[0])[:4]
+            new_obs_ind.sort()
+            new_vec_obs = uniform(size=(self._vector_observation_space[0]))
+            new_vec_obs = new_vec_obs * 0 if not self._default_reset_params["noise"] else new_vec_obs
+            new_vec_obs[new_obs_ind] = vec_obs
+            vec_obs = new_vec_obs
         
         # Shuffle vector observation if requested
         if self._shuffle_observation:
