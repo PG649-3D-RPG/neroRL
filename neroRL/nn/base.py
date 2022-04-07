@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from torch import nn
 
-from neroRL.nn.encoder import CNNEncoder, ResCNN, LinVecEncoder
+from neroRL.nn.encoder import CNNEncoder, ResCNN, LinVecEncoder, AttentionEncoder
 from neroRL.nn.recurrent import GRU, LSTM, ResLSTM, ResGRU, TransformerEncoder
 from neroRL.nn.body import HiddenLayer
 from neroRL.nn.module import Module, Sequential
@@ -170,6 +170,8 @@ class ActorCriticBase(Module):
             return CNNEncoder(vis_obs_space, config, self.activ_fn)
         elif config["vis_encoder"] == "rescnn":
             return ResCNN(vis_obs_space, config, self.activ_fn)
+        elif config["vis_encoder"] == "attention_encoder":
+            return AttentionEncoder(vis_obs_space, config, self.activ_fn)
 
     def create_vec_encoder(self, config, in_features, out_features):
         """Creates and returns a new instance of the vector encoder based on the model config.

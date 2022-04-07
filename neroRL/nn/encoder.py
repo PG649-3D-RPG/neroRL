@@ -250,3 +250,82 @@ class LinVecEncoder(Module):
             {torch.tensor} -- Feature tensor
         """
         return self.activ_fn(self.lin_layer(h))
+
+class AttentionEncoder(Module):
+    def __init__(self, vis_obs_space, config, activ_fn) -> None:
+        # https://github.com/RvuvuzelaM/self-attention-ppo-pytorch/blob/master/src/model.py
+        super().__init__()
+        # Set the activation function
+        self.activ_fn = activ_fn
+
+        vis_obs_shape = vis_obs_space.shape
+        self.c1 = nn.Conv2d(vis_obs_shape[0], 32, 8, stride=4)
+        self.attention_layer = MultiHeadAttention(32)
+        self.c2 = nn.Conv2d(32, 64, 4, stride=2)
+        self.c3 = nn.Conv2d(64, 64, 3, stride=1)
+        
+        # Compute the output size of the encoder
+        self.conv_enc_size = self.get_enc_output(vis_obs_shape)
+       
+    def cnn_layer(self, x):
+        h = self.activ_fn(self.c1(x))
+        h = self.attention_layer(h, h, h)
+        h = self.activ_fn(self.c2(h))
+        h = self.activ_fn(self.c3(h))
+        return h
+
+    def shared_layer(self, x):
+        h = self.cnn_layer(x)
+        h = h.reshape(-1).view(-1, self.conv_enc_size)
+        h = self.activ_fn(h)
+        return h 
+        
+    def forward(self, x):
+        h = self.shared_layer(x)
+        return h
+        
+    def get_enc_output(self, shape):
+        """Computes the output size of the encoder by feeding a dummy tensor.
+
+        Arguments:
+            shape {tuple} -- Input shape of the data feeding the first encoder
+            
+        Returns:
+            {int} -- Number of output features returned by the utilized encoder
+        """
+        x = torch.zeros(1, *shape)
+        h = self.cnn_layer(x)
+        return int(np.prod(h.size()))
+        
+        
+        
+class MultiHeadAttention(nn.Module):
+    def __init__(self, size):
+        super().__init__()
+        self.w_qs = nn.Conv2d(size, size, 1)
+        self.w_ks = nn.Conv2d(size, size, 1)
+        self.w_vs = nn.Conv2d(size, size, 1)
+
+        self.attention = ScaledDotProductAttention()
+
+    def forward(self, q, k, v):
+        residual = q
+        q = self.w_qs(q).permute(0, 2, 3, 1)
+        k = self.w_ks(k).permute(0, 2, 3, 1)
+        v = self.w_vs(v).permute(0, 2, 3, 1)
+
+        attention = self.attention(q, k, v).permute(0, 3, 1, 2)
+
+        out = attention + residual
+        return out
+
+
+class ScaledDotProductAttention(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, q, k, v):
+        attn = torch.matmul(q, k.transpose(2, 3))
+        output = torch.matmul(attn, v)
+
+        return output
