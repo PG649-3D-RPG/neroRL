@@ -273,15 +273,11 @@ class AttentionEncoder(Module):
         h = self.activ_fn(self.c2(h))
         h = self.activ_fn(self.c3(h))
         return h
-
-    def shared_layer(self, x):
+        
+    def forward(self, x):
         h = self.cnn_layer(x)
         h = h.reshape(-1).view(-1, self.conv_enc_size)
         h = self.activ_fn(h)
-        return h 
-        
-    def forward(self, x):
-        h = self.shared_layer(x)
         return h
         
     def get_enc_output(self, shape):
