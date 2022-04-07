@@ -291,9 +291,7 @@ class AttentionEncoder(Module):
         """
         x = torch.zeros(1, *shape)
         h = self.cnn_layer(x)
-        return int(np.prod(h.size()))
-        
-        
+        return int(np.prod(h.size()))       
         
 class MultiHeadAttention(nn.Module):
     def __init__(self, size):
