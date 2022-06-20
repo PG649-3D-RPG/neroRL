@@ -1,22 +1,22 @@
-# https://github.com/maximecb/gym-minigrid
+# https://github.com/openai/gym
 
 environment:
-  type: "MinigridVec"
-  name: "MiniGrid-MemoryS7-v0"
+  type: "Hopper"
+  name: "Hopper-v4"
   frame_skip: 1
   last_action_to_obs: False
   last_reward_to_obs: False
   obs_stacks: 1
-  # grayscale: False
-  # resize_vis_obs: [84, 84]
   reset_params:
     start-seed: 0
     num-seeds: 100
+    # Whether to mask the velocity of the car
+    mask-velocity: False
 
 model:
   load_model: False
-  model_path: "./models/good_minigrid-900.pt"
-  checkpoint_interval: 100
+  model_path: ""
+  checkpoint_interval: 25
   activation: "relu"
   vis_encoder: "cnn"
   vec_encoder: "linear"
@@ -27,7 +27,7 @@ model:
   recurrence:
     layer_type: "gru"
     sequence_length: 16
-    hidden_state_size: 32
+    hidden_state_size: 128
     hidden_state_init: "zero"
     reset_hidden_state: False
     residual: False
@@ -36,7 +36,7 @@ evaluation:
   evaluate: False
   n_workers: 3
   seeds: [1001, 1002, 1003, 1004, 1005]
-  interval: 10
+  interval: 50
 
 sampler:
   type: "TrajectorySampler"
@@ -48,25 +48,25 @@ trainer:
   resume_at: 0
   gamma: 0.99
   lamda: 0.95
-  updates: 1000
+  updates: 200
   epochs: 4
   refresh_buffer_epoch: -1
-  n_mini_batches: 8
+  n_mini_batches: 4
   value_coefficient: 0.25
   max_grad_norm: 0.5
   share_parameters: True
   learning_rate_schedule:
-    initial: 2.5e-4
-    final: 3.0e-6
+    initial: 1.0e-4
+    final: 1.0e-4
     power: 1.0
-    max_decay_steps: 1000
+    max_decay_steps: 50
   beta_schedule:
-    initial: 0.001
-    final: 0.00001
+    initial: 0.00001
+    final: 0.000001
     power: 1.0
-    max_decay_steps: 1000
+    max_decay_steps: 50
   clip_range_schedule:
     initial: 0.2
     final: 0.2
     power: 1.0
-    max_decay_steps: 1000
+    max_decay_steps: 50

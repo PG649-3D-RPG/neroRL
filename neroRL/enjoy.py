@@ -85,10 +85,9 @@ def main():
     # Retrieve observation space
     visual_observation_space = env.visual_observation_space
     vector_observation_space = env.vector_observation_space
-    if isinstance(env.action_space, spaces.Discrete):
-        action_space_shape = (env.action_space.n,)
-    else:
-        action_space_shape = tuple(env.action_space.nvec)
+    #changed here 
+    if isinstance(env.action_space, spaces.Box):
+        action_space_shape = env.action_space.shape
 
     # Build or load model
     logger.info("Step 2: Creating model")

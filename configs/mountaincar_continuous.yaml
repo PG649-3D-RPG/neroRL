@@ -1,28 +1,25 @@
-# https://github.com/maximecb/gym-minigrid
+# https://github.com/openai/gym
 
 environment:
-  type: "Minigrid"
-  name: "MiniGrid-MemoryS17Random-v0"
+  type: "MountainCarContinuous"
+  name: "MountainCarContinuous-v0"
   frame_skip: 1
   last_action_to_obs: False
   last_reward_to_obs: False
   obs_stacks: 1
-  grayscale: False
-  resize_vis_obs: [84, 84]
   reset_params:
     start-seed: 0
-    num-seeds: 200
-    # The view size of the agent, which has to be an odd number
-    # The default value in minigrid is 7, which is not a good challenge in terms of agent memory
-    view-size: 3
+    num-seeds: 100
+    # Whether to mask the velocity of the car
+    mask-velocity: False
 
 model:
   load_model: False
-  model_path: "./checkpoints/mg_17r/20220112-065616_2/mg_17r-208.pt"
-  checkpoint_interval: 100
+  model_path: ""
+  checkpoint_interval: 25
   activation: "relu"
   vis_encoder: "cnn"
-  vec_encoder_layer: "linear"
+  vec_encoder: "linear"
   num_vec_encoder_units: 128
   hidden_layer: "default"
   num_hidden_layers: 1
@@ -30,16 +27,16 @@ model:
   recurrence:
     layer_type: "gru"
     sequence_length: 16
-    hidden_state_size: 256
+    hidden_state_size: 128
     hidden_state_init: "zero"
-    reset_hidden_state: True
+    reset_hidden_state: False
     residual: False
 
 evaluation:
   evaluate: False
   n_workers: 3
-  seeds: [1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010]
-  interval: 100
+  seeds: [1001, 1002, 1003, 1004, 1005]
+  interval: 50
 
 sampler:
   type: "TrajectorySampler"
@@ -51,25 +48,25 @@ trainer:
   resume_at: 0
   gamma: 0.99
   lamda: 0.95
-  updates: 500
+  updates: 200
   epochs: 4
   refresh_buffer_epoch: -1
-  n_mini_batches: 8
+  n_mini_batches: 4
   value_coefficient: 0.25
   max_grad_norm: 0.5
   share_parameters: True
   learning_rate_schedule:
-    initial: 2.5e-4
-    final: 2.5e-4
+    initial: 1.0e-4
+    final: 1.0e-4
     power: 1.0
-    max_decay_steps: 1000
+    max_decay_steps: 50
   beta_schedule:
-    initial: 0.001
-    final: 0.0001
+    initial: 0.00001
+    final: 0.000001
     power: 1.0
-    max_decay_steps: 1000
+    max_decay_steps: 50
   clip_range_schedule:
     initial: 0.2
     final: 0.2
     power: 1.0
-    max_decay_steps: 1000
+    max_decay_steps: 50
