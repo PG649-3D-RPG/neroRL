@@ -1,7 +1,7 @@
 # https://github.com/openai/gym
 
 environment:
-  type: "MountainCarContinuous"
+  type: "GymContinuous"
   name: "MountainCarContinuous-v0"
   frame_skip: 1
   last_action_to_obs: False
@@ -10,8 +10,6 @@ environment:
   reset_params:
     start-seed: 0
     num-seeds: 100
-    # Whether to mask the velocity of the car
-    mask-velocity: False
 
 model:
   load_model: False

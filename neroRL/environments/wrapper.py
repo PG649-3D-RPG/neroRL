@@ -1,7 +1,6 @@
 from neroRL.environments.unity_wrapper import UnityWrapper
 from neroRL.environments.cartpole_wrapper import CartPoleWrapper
-from neroRL.environments.mountaincar_continuous_wrapper import MountainCarContinuousWrapper
-from neroRL.environments.hopper_countinuous_wrapper import HopperContinuousWrapper
+from neroRL.environments.gym_continuous_wrapper import GymContinuousWrapper
 from neroRL.environments.wrappers.frame_skip import FrameSkipEnv
 from neroRL.environments.wrappers.stacked_observation import StackedObservationEnv
 from neroRL.environments.wrappers.scaled_visual_observation import ScaledVisualObsEnv
@@ -27,10 +26,8 @@ def wrap_environment(config, worker_id, realtime_mode = False, record_trajectory
         env = UnityWrapper(config["name"], config["reset_params"], worker_id, realtime_mode=realtime_mode, record_trajectory=record_trajectory)
     elif config["type"] == "CartPole":
         env = CartPoleWrapper(config["name"], config["reset_params"], realtime_mode=realtime_mode, record_trajectory=record_trajectory)
-    elif config["type"] == "MountainCarContinuous":
-        env = MountainCarContinuousWrapper(config["name"], config["reset_params"], realtime_mode=realtime_mode, record_trajectory=record_trajectory)
-    elif config["type"] == "Hopper":
-        env = HopperContinuousWrapper(config["name"], config["reset_params"], realtime_mode=realtime_mode, record_trajectory=record_trajectory)
+    elif config["type"] == "GymContinuous":
+        env = GymContinuousWrapper(config["name"], config["reset_params"], realtime_mode=realtime_mode, record_trajectory=record_trajectory)
 
     # Wrap environment
     # Frame Skip

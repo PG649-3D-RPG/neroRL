@@ -5,11 +5,16 @@ import random
 from gym import error, spaces
 from neroRL.environments.env import Env
 
-class MountainCarContinuousWrapper(Env):
+class GymContinuousWrapper(Env):
     """This class wraps Gym MountainCarContinuous environments.
     https://gymlibrary.ml/#environments/
     Available Environments:
         MountainCarContinuous-v0
+        Hopper-v0
+        Hopper-v1
+        Hopper-v2
+        Hopper-v3
+        Hopper-v4
     """
 
     def __init__(self, env_name, reset_params = None, realtime_mode = False, record_trajectory = False):
@@ -23,7 +28,7 @@ class MountainCarContinuousWrapper(Env):
         """
         # Set default reset parameters if none were provided
         if reset_params is None:
-            self._default_reset_params = {"start-seed": 0, "num-seeds": 100, "mask-velocity": False}
+            self._default_reset_params = {"start-seed": 0, "num-seeds": 100}
         else:
             self._default_reset_params = reset_params
 
@@ -36,8 +41,6 @@ class MountainCarContinuousWrapper(Env):
 
         # Prepare observation space
         self._vector_observation_space = self._env.observation_space.shape
-        # Create mask to hide the velocity of the car if requested by the reset params
-        self._obs_mask = np.ones(2, dtype=np.float32) if not self._default_reset_params["mask-velocity"] else np.asarray([1,0], dtype=np.float32)
 
     @property
     def unwrapped(self):
@@ -62,7 +65,11 @@ class MountainCarContinuousWrapper(Env):
     @property
     def action_names(self):
         """Returns a list of action names."""
-        return ["directional force"]
+        if "Hopper" in self._env_name:
+            return ["thigh rotor torque", "leg rotor torque", "foot rotor torque"]
+        elif "Car" in self._env_name:
+            return ["directional force"]
+        return None
 
     @property
     def get_episode_trajectory(self):
@@ -88,8 +95,6 @@ class MountainCarContinuousWrapper(Env):
         # Set seed
         self._env.seed(random.randint(reset_params["start-seed"], reset_params["start-seed"] + reset_params["num-seeds"] - 1))
 
-        # Create mask to hide the velocity of the car if requested by the reset params
-        self._obs_mask = np.ones(2, dtype=np.float32) if not self._default_reset_params["mask-velocity"] else np.asarray([1,0], dtype=np.float32)
 
         # Track rewards of an entire episode
         self._rewards = []
@@ -109,7 +114,7 @@ class MountainCarContinuousWrapper(Env):
                 "rewards": [0.0], "actions": [], "frame_rate": 20
             }
 
-        return vis_obs, vec_obs * self._obs_mask
+        return vis_obs, vec_obs
 
     def step(self, action):
         """Runs one timestep of the environment's dynamics.
@@ -151,7 +156,7 @@ class MountainCarContinuousWrapper(Env):
         else:
             info = None
 
-        return vis_obs, vec_obs * self._obs_mask, reward / 100.0, done, info
+        return vis_obs, vec_obs, reward / 100.0, done, info
 
     def close(self):
         """Shuts down the environment."""
