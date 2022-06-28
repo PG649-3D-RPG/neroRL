@@ -103,11 +103,8 @@ class PPOTrainer(BaseTrainer):
                                     self.sampler.buffer.actual_sequence_length)
         
         # Policy Loss
-        # Retrieve and process log_probs from each policy branch
-        log_probs = []
-        for i, policy_branch in enumerate(policy):
-            log_probs.append(policy_branch.log_prob(samples["actions"][:, i]))
-        log_probs = torch.stack(log_probs, dim=1)
+        # Retrieve new log_probs from the policy
+        log_probs = policy.log_prob(samples["actions"]).sum(1)
 
         # Compute surrogates
         normalized_advantage = (samples["advantages"] - samples["advantages"].mean()) / (samples["advantages"].std() + 1e-8)
@@ -127,10 +124,7 @@ class PPOTrainer(BaseTrainer):
         vf_loss = masked_mean(vf_loss, samples["loss_mask"])
 
         # Entropy Bonus
-        entropies = []
-        for policy_branch in policy:
-            entropies.append(policy_branch.entropy())
-        entropy_bonus = masked_mean(torch.stack(entropies, dim=1).sum(1).reshape(-1), samples["loss_mask"])
+        entropy_bonus = masked_mean(policy.entropy().sum(1), samples["loss_mask"])
 
         # Complete loss
         loss = -(policy_loss - self.vf_loss_coef * vf_loss + self.beta * entropy_bonus)

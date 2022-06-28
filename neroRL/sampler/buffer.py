@@ -28,9 +28,7 @@ class Buffer():
         self.worker_steps = worker_steps
         self.batch_size = self.num_workers * self.worker_steps
         self.rewards = np.zeros((num_workers, worker_steps), dtype=np.float32)
-        self.actions = torch.zeros((num_workers, worker_steps, len(action_space_shape)), dtype=torch.long)
-        # self.action_mean = torch.zeros((num_workers, worker_steps, action_space_shape[0]))
-        # self.action_std = torch.zeros((num_workers, worker_steps, action_space_shape[0]))
+        self.actions = torch.zeros((num_workers, worker_steps, action_space_shape[0]))
         self.dones = np.zeros((num_workers, worker_steps), dtype=np.bool)
         if visual_observation_space is not None:
             self.vis_obs = torch.zeros((num_workers, worker_steps) + visual_observation_space.shape)
@@ -48,7 +46,7 @@ class Buffer():
             self.hxs = torch.zeros((num_workers, worker_steps, recurrence["hidden_state_size"], 2)) if recurrence is not None else None
             self.cxs = torch.zeros((num_workers, worker_steps, recurrence["hidden_state_size"], 2)) if recurrence is not None else None
 
-        self.log_probs = torch.zeros((num_workers, worker_steps, len(action_space_shape)))
+        self.log_probs = torch.zeros((num_workers, worker_steps))
         self.values = torch.zeros((num_workers, worker_steps))
         self.advantages = torch.zeros((num_workers, worker_steps))
         self.num_sequences = 0

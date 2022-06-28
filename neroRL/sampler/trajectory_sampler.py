@@ -103,20 +103,15 @@ class TrajectorySampler():
                 policy, value, self.recurrent_cell, _ = self.model(vis_obs_batch, vec_obs_batch, self.recurrent_cell)
                 self.buffer.values[:, t] = value.data
 
-                # Sample actions from each individual policy branch
-                actions = []
-                log_probs = []
-                for action_branch in policy:
-                    action = action_branch.sample()
-                    actions.append(action)
-                    log_probs.append(action_branch.log_prob(action))
-                self.buffer.actions[:, t] = torch.stack(actions, dim=1)
-                self.buffer.log_probs[:, t] = torch.stack(log_probs, dim=1)
+                # Sample actions
+                action = policy.sample()
+                self.buffer.actions[:, t] = action
+                self.buffer.log_probs[:, t] = policy.log_prob(action).sum(1)
 
             # Execute actions
-            actions = self.buffer.actions[:, t].cpu().numpy() # send actions as batch to the CPU, to save IO time
+            action = self.buffer.actions[:, t].cpu().numpy() # send actions as batch to the CPU, to save IO time
             for w, worker in enumerate(self.workers):
-                worker.child.send(("step", actions[w]))
+                worker.child.send(("step", action[w]))
 
             # Retrieve results
             for w, worker in enumerate(self.workers):

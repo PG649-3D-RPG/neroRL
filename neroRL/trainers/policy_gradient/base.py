@@ -74,6 +74,8 @@ class BaseTrainer():
         self.vector_observation_space = self.dummy_env.vector_observation_space
         if isinstance(self.dummy_env.action_space, spaces.Discrete):
             self.action_space_shape = (self.dummy_env.action_space.n,)
+        elif isinstance(self.dummy_env.action_space, spaces.Box):
+            self.action_space_shape = self.dummy_env.action_space.shape
         else:
             self.action_space_shape = tuple(self.dummy_env.action_space.nvec)
         self.dummy_env.close()
@@ -151,6 +153,7 @@ class BaseTrainer():
             # 6.: Train n epochs over the sampled data
             if torch.cuda.is_available():
                 self.model.cuda() # Train on GPU
+
             training_stats, formatted_string = self.train()
             
             # Store recent episode infos
