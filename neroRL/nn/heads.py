@@ -2,9 +2,36 @@ import numpy as np
 import torch
 from torch import nn
 from torch.distributions.categorical import Categorical
+from torch.distributions.normal import Normal
 import torch.nn.functional as F
 
 from neroRL.nn.module import Module
+
+class ContinuousActionPolicy(Module):
+    def __init__(self, in_features, action_space_shape, activ_fn):
+        super().__init__()
+        # Set the activation function
+        self.activ_fn = activ_fn
+        # Linear layer before head
+        self.linear = nn.Linear(in_features=in_features, out_features=512)
+        nn.init.orthogonal_(self.linear.weight, np.sqrt(2))
+
+        # Mean of the normal distribution
+        self.mu = nn.Linear(in_features=512, out_features=action_space_shape[0])
+        nn.init.orthogonal_(self.mu.weight, np.sqrt(0.01))
+
+        # Std of the normal distribution as a learnable parameter
+        self.logstd = nn.Parameter(torch.zeros(1, np.prod(action_space_shape)))
+
+    def forward(self, h):
+        # Feed hidden layer
+        h = self.activ_fn(self.linear(h))
+
+        mu = self.mu(h)
+        logstd = self.logstd.expand_as(mu)
+        std = torch.exp(logstd)
+
+        return Normal(mu, std)
 
 class MultiDiscreteActionPolicy(Module):
     """Multi-Discrete Action Space based on categorical distributions"""

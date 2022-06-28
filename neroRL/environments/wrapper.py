@@ -1,5 +1,4 @@
 from neroRL.environments.unity_wrapper import UnityWrapper
-from neroRL.environments.cartpole_wrapper import CartPoleWrapper
 from neroRL.environments.gym_continuous_wrapper import GymContinuousWrapper
 from neroRL.environments.wrappers.frame_skip import FrameSkipEnv
 from neroRL.environments.wrappers.stacked_observation import StackedObservationEnv
@@ -24,8 +23,6 @@ def wrap_environment(config, worker_id, realtime_mode = False, record_trajectory
     # Instantiate environment
     if config["type"] == "Unity":
         env = UnityWrapper(config["name"], config["reset_params"], worker_id, realtime_mode=realtime_mode, record_trajectory=record_trajectory)
-    elif config["type"] == "CartPole":
-        env = CartPoleWrapper(config["name"], config["reset_params"], realtime_mode=realtime_mode, record_trajectory=record_trajectory)
     elif config["type"] == "GymContinuous":
         env = GymContinuousWrapper(config["name"], config["reset_params"], realtime_mode=realtime_mode, record_trajectory=record_trajectory)
 

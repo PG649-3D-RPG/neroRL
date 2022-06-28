@@ -1,5 +1,6 @@
 import numpy as np
 import gym
+import pybulletgym
 import time
 import random
 from gym import error, spaces
@@ -131,6 +132,9 @@ class GymContinuousWrapper(Env):
         """
         # Execute action
         #TODO Action is an array with one float32, same as CartPole with int, but step only take int or nparray. So we have to enter the whole array
+        if self.action_space.shape[0] == 1:
+            action = [action]
+
         obs, reward, done, info = self._env.step(action)
         self._rewards.append(reward)
         # Retrieve the agent's current observation

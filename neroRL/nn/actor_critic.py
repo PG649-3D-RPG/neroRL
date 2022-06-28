@@ -2,7 +2,7 @@ import numpy as np
 import torch
 
 from neroRL.nn.base import ActorCriticBase
-from neroRL.nn.heads import MultiDiscreteActionPolicy, ValueEstimator, AdvantageEstimator
+from neroRL.nn.heads import ContinuousActionPolicy, ValueEstimator, AdvantageEstimator
 
 class ActorCriticSeperateWeights(ActorCriticBase):
     """A flexible actor-critic model with separate actor and critic weights that supports:
@@ -32,7 +32,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         self.critic_vis_encoder, self.critic_vec_encoder, self.critic_recurrent_layer, self.critic_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
 
         # Policy head/output
-        self.actor_policy = MultiDiscreteActionPolicy(in_features = self.out_features_body, action_space_shape = action_space_shape, activ_fn = self.activ_fn)
+        self.actor_policy = ContinuousActionPolicy(in_features = self.out_features_body, action_space_shape = action_space_shape, activ_fn = self.activ_fn)
 
         # Value function head/output
         self.critic = ValueEstimator(in_features = self.out_features_body, activ_fn = self.activ_fn)
@@ -282,7 +282,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
         self.vis_encoder, self.vec_encoder, self.recurrent_layer, self.body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
 
         # Policy head/output
-        self.actor_policy = MultiDiscreteActionPolicy(self.out_features_body, action_space_shape, self.activ_fn)
+        self.actor_policy = ContinuousActionPolicy(self.out_features_body, action_space_shape, self.activ_fn)
 
         # Value function head/output
         self.critic = ValueEstimator(self.out_features_body, self.activ_fn)

@@ -143,24 +143,16 @@ def main():
                 vec_obs = torch.tensor(np.expand_dims(vec_obs, 0), dtype=torch.float32, device=device) if vec_obs is not None else None
                 policy, value, recurrent_cell, _ = model(vis_obs, vec_obs, recurrent_cell)
 
-                _actions = []
-                _probs = []
-                entropy = []
-                # Sample action
-                for action_branch in policy:
-                    action = action_branch.sample()
-                    _actions.append(action.item())
-                    _probs.append(action_branch.probs)
-                    entropy.append(action_branch.entropy().item())
+                action = policy.sample()
 
                 # Store data for video recording
-                actions.append(_actions)
-                probs.append(torch.stack(_probs))
-                entropies.append(entropy)
+                actions.append(action)
+                probs.append(policy.log_prob(action).sum(1).cpu().numpy())
+                entropies.append(policy.entropy().sum(1).cpu().numpy())
                 values.append(value.cpu().numpy())
 
                 # Step environment
-                vis_obs, vec_obs, _, done, info = env.step(_actions)
+                vis_obs, vec_obs, _, done, info = env.step(action.squeeze().cpu().numpy())
 
         logger.info("Episode Reward: " + str(info["reward"]))
         logger.info("Episode Length: " + str(info["length"]))
