@@ -40,6 +40,13 @@ class GymContinuousWrapper(Env):
         self._env_name = env_name
         self._env = gym.make(self._env_name)
 
+        #wrap environment with gym wrappers similar to cleanrl
+        self._env = gym.wrappers.ClipAction(self._env) #very important, as e.g. MountainCar uses actual action value to calculate rewards
+        self._env = gym.wrappers.NormalizeObservation(self._env)
+        self._env = gym.wrappers.TransformObservation(self._env, lambda obs: np.clip(obs, -10, 10))
+        self._env = gym.wrappers.NormalizeReward(self._env)
+        self._env = gym.wrappers.TransformReward(self._env, lambda reward: np.clip(reward, -10, 10))
+
         # Prepare observation space
         self._vector_observation_space = self._env.observation_space.shape
 

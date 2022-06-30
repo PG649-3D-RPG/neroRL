@@ -74,7 +74,7 @@ class PPOTrainer(BaseTrainer):
             train_info[key] = (tag, np.mean(values))
 
         # Format specific values for logging inside the base class
-        formatted_string = "loss={:.3f} pi_loss={:.3f} vf_loss={:.3f} entropy={:.3f}".format(
+        formatted_string = "loss={:.5f} pi_loss={:.5f} vf_loss={:.5f} entropy={:.5f}".format(
             train_info["loss"][1], train_info["policy_loss"][1], train_info["value_loss"][1], train_info["entropy"][1])
 
         # Return the mean of the training statistics
@@ -108,8 +108,11 @@ class PPOTrainer(BaseTrainer):
 
         # Compute surrogates
         normalized_advantage = (samples["advantages"] - samples["advantages"].mean()) / (samples["advantages"].std() + 1e-8)
+
+        #removed this as it should not be necessary for continuous actions
         # Repeat is necessary for multi-discrete action spaces
-        normalized_advantage = normalized_advantage.unsqueeze(1).repeat(1, len(self.action_space_shape))
+        #normalized_advantage = normalized_advantage.unsqueeze(1).repeat(1, len(self.action_space_shape))
+
         log_ratio = log_probs - samples["log_probs"]
         ratio = torch.exp(log_ratio)
         surr1 = ratio * normalized_advantage
@@ -120,6 +123,10 @@ class PPOTrainer(BaseTrainer):
         # Value
         sampled_return = samples["values"] + samples["advantages"]
         clipped_value = samples["values"] + (value - samples["values"]).clamp(min=-self.clip_range, max=self.clip_range)
+
+        #debug output
+        #print("debug info: network value ", str(value), " sampled return ", str(sampled_return))
+
         vf_loss = torch.max((value - sampled_return) ** 2, (clipped_value - sampled_return) ** 2)
         vf_loss = masked_mean(vf_loss, samples["loss_mask"])
 
