@@ -42,7 +42,7 @@ class PPOTrainer(BaseTrainer):
         self.clip_range = self.cr_schedule["initial"]
 
         # Instantiate optimizer
-        self.optimizer = optim.AdamW(self.model.parameters(), lr=self.learning_rate)
+        self.optimizer = optim.AdamW(self.model.parameters(), lr=self.learning_rate, eps=1e-5)
 
     def create_model(self) -> None:
         return create_actor_critic_model(self.configs["model"], self.configs["trainer"]["share_parameters"],
@@ -129,6 +129,7 @@ class PPOTrainer(BaseTrainer):
 
         vf_loss = torch.max((value - sampled_return) ** 2, (clipped_value - sampled_return) ** 2)
         vf_loss = masked_mean(vf_loss, samples["loss_mask"])
+        vf_loss = 0.5 * vf_loss #added this corresponding to cleanRL ppo_continuous_action.py line 300/302 (this essentially sets the vf_coefficient to 0.5*0.5=0.25 which was the original value in the config)
 
         # Entropy Bonus
         entropy_bonus = masked_mean(policy.entropy().sum(1), samples["loss_mask"])

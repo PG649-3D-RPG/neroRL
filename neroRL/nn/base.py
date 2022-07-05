@@ -152,6 +152,8 @@ class ActorCriticBase(Module):
             return nn.ReLU()
         elif config["activation"] == "swish":
             return nn.SiLU()
+        elif config["activation"] == 'tanh': #added tanh activation function
+            return nn.Tanh()
 
     def create_vis_encoder(self, config, vis_obs_space):
         """Creates and returns a new instance of the visual encoder based on the model config.

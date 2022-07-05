@@ -15,13 +15,14 @@ model:
   load_model: False
   model_path: ""
   checkpoint_interval: 25
-  activation: "relu"
+  activation: "tanh"
   vis_encoder: "cnn"
   vec_encoder: "linear"
   num_vec_encoder_units: 128
   hidden_layer: "default"
   num_hidden_layers: 1
   num_hidden_units: 512
+  share_parameters: False
   # recurrence:
   #   layer_type: "gru"
   #   sequence_length: 16
@@ -38,19 +39,19 @@ evaluation:
 
 sampler:
   type: "TrajectorySampler"
-  n_workers: 16
-  worker_steps: 256
+  n_workers: 1
+  worker_steps: 2048
 
 trainer:
   algorithm: "PPO"
   resume_at: 0
   gamma: 0.99
   lamda: 0.95
-  updates: 200
-  epochs: 4
+  updates: 489
+  epochs: 10
   refresh_buffer_epoch: -1
-  n_mini_batches: 4
-  value_coefficient: 0.25
+  n_mini_batches: 32
+  value_coefficient: 0.5
   max_grad_norm: 0.5
   share_parameters: True
   learning_rate_schedule:
@@ -59,8 +60,8 @@ trainer:
     power: 1.0
     max_decay_steps: 50
   beta_schedule:
-    initial: 0.001
-    final: 0.00001
+    initial: 0
+    final: 0
     power: 1.0
     max_decay_steps: 200
   clip_range_schedule:
