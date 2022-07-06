@@ -170,9 +170,9 @@ class BaseTrainer():
             # 7.: Write training statistics to console
             episode_result = self._process_episode_info(episode_info)
             if episode_result:
-                self.monitor.log((("{:4} sec={:2} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} ") +
+                self.monitor.log((("{:4} sec={:2} full reward={:.2f} reward={:.2f} std={:.2f} length={:.1f} std={:.2f} ") +
                     (" value={:3f} std={:.3f} advantage={:.3f} std={:.3f} sequence length={:3}")).format(
-                    update, update_duration, episode_result["reward_mean"], episode_result["reward_std"],
+                    update, update_duration, episode_result["full_reward_mean"], episode_result["reward_mean"], episode_result["reward_std"],
                     episode_result["length_mean"], episode_result["length_std"], torch.mean(self.sampler.buffer.values), torch.std(self.sampler.buffer.values),
                     torch.mean(self.sampler.buffer.advantages), torch.std(self.sampler.buffer.advantages), self.sampler.buffer.actual_sequence_length) +
                     " " + formatted_string)

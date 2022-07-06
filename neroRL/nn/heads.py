@@ -13,11 +13,11 @@ class ContinuousActionPolicy(Module):
         # Set the activation function
         self.activ_fn = activ_fn
         # Linear layer before head
-        self.linear = nn.Linear(in_features=in_features, out_features=512)
+        self.linear = nn.Linear(in_features=in_features, out_features=64)
         nn.init.orthogonal_(self.linear.weight, np.sqrt(2))
 
         # Mean of the normal distribution
-        self.mu = nn.Linear(in_features=512, out_features=action_space_shape[0])
+        self.mu = nn.Linear(in_features=64, out_features=action_space_shape[0])
         nn.init.orthogonal_(self.mu.weight, np.sqrt(0.01))
 
         # Std of the normal distribution as a learnable parameter
@@ -78,10 +78,10 @@ class ValueEstimator(Module):
         # Set the activation function
         self.activ_fn = activ_fn
         # Linear layer before head
-        self.linear = nn.Linear(in_features=in_features, out_features=512)
+        self.linear = nn.Linear(in_features=in_features, out_features=64)
         nn.init.orthogonal_(self.linear.weight, np.sqrt(2))
         # Value head
-        self.value = nn.Linear(in_features=512, out_features=1)
+        self.value = nn.Linear(in_features=64, out_features=1)
         nn.init.orthogonal_(self.value.weight, 1)
 
     def forward(self, h):

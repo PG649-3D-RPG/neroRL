@@ -18,10 +18,10 @@ model:
   activation: "tanh"
   vis_encoder: "cnn"
   vec_encoder: "linear"
-  num_vec_encoder_units: 128
+  num_vec_encoder_units: 64
   hidden_layer: "default"
   num_hidden_layers: 1
-  num_hidden_units: 512
+  num_hidden_units: 64
   share_parameters: False
   # recurrence:
   #   layer_type: "gru"
@@ -39,8 +39,8 @@ evaluation:
 
 sampler:
   type: "TrajectorySampler"
-  n_workers: 1
-  worker_steps: 2048
+  n_workers: 4
+  worker_steps: 1024
 
 trainer:
   algorithm: "PPO"

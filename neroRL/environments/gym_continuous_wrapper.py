@@ -41,6 +41,7 @@ class GymContinuousWrapper(Env):
         self._env = gym.make(self._env_name)
 
         #wrap environment with gym wrappers similar to cleanrl
+        self._env = gym.wrappers.RecordEpisodeStatistics(self._env)
         self._env = gym.wrappers.ClipAction(self._env) #very important, as e.g. MountainCar uses actual action value to calculate rewards
         self._env = gym.wrappers.NormalizeObservation(self._env)
         self._env = gym.wrappers.TransformObservation(self._env, lambda obs: np.clip(obs, -10, 10))
@@ -159,11 +160,15 @@ class GymContinuousWrapper(Env):
         # Wrap up episode information once completed (i.e. done)
         if done:
             info = {"reward": sum(self._rewards),
-                    "length": len(self._rewards)}
+                    "length": len(self._rewards),
+                    "full_reward": info["episode"]['r']
+                    }
         else:
             info = None
 
-        return vis_obs, vec_obs, reward / 100.0, done, info
+        return vis_obs, vec_obs, reward, done, info
+            
+        #return vis_obs, vec_obs, reward / 100.0, done, info
 
     def close(self):
         """Shuts down the environment."""
