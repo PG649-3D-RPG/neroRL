@@ -44,15 +44,15 @@ class UnityWrapper(Env):
         if realtime_mode:
             self.engine_config.set_configuration_parameters(time_scale=1.0, width=1280, height=720)
         else:
-            self.engine_config.set_configuration_parameters(time_scale=30.0, width=256, height=256)
+            self.engine_config.set_configuration_parameters(time_scale=10.0, width=256, height=256)
 
         # Whether to record the trajectory of an entire episode
         self._record = record_trajectory
 
         # Launch the environment's executable
-        self._env = UnityEnvironment(file_name = env_path, worker_id = worker_id, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config], timeout_wait=300)
-        # If the Unity Editor chould be used instead of a build
-        # self._env = UnityEnvironment(file_name = None, worker_id = 0, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config])
+        #self._env = UnityEnvironment(file_name = env_path, worker_id = worker_id, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config], timeout_wait=300)
+        # If the Unity Editor should be used instead of a build
+        self._env = UnityEnvironment(file_name = None, worker_id = 0, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config])
 
         # Reset the environment
         self._env.reset()
@@ -63,14 +63,16 @@ class UnityWrapper(Env):
         # Check whether this Unity environment is supported
         self._verify_environment()
 
+        print("Action spec type ", type(self._behavior_spec.action_spec))
+
+        low = np.array([-1 for i in range(39)])
+        high = np.array([1 for i in range(39)])
+
         # Set action space properties
-        if self._behavior_spec.action_spec.is_discrete():
-            num_action_branches = self._behavior_spec.action_spec.discrete_size
-            action_branch_dimensions = self._behavior_spec.action_spec.discrete_branches
-            if num_action_branches == 1:
-                self._action_space = spaces.Discrete(action_branch_dimensions[0])
-            else:
-                self._action_space = spaces.MultiDiscrete(action_branch_dimensions)
+        if self._behavior_spec.action_spec.is_continuous():
+            self._action_space = spaces.Box(low=-1, high=1, shape=(self._behavior_spec.action_spec.continuous_size,), dtype=np.float32) #TODO: check if it is possible to automatically set Box low and high values
+
+            
 
         # Count visual and vector observations
         self._num_vis_obs, self._num_vec_obs = 0, 0
@@ -193,7 +195,7 @@ class UnityWrapper(Env):
         Once an episode is done, reset() has to be called manually.
                 
         Arguments:
-            action {List} -- A list of at least one discrete action to be executed by the agent
+            action {List} -- A list of at least one continuous action to be executed by the agent
 
         Returns:
             {numpy.ndarray} -- Visual observation
@@ -202,9 +204,10 @@ class UnityWrapper(Env):
             {bool} -- Whether the episode of the environment terminated
             {dict} -- Further episode information (e.g. cumulated reward) retrieved from the environment once an episode completed
         """
-        # Carry out the agent's action
+        # Carry ot the agent's action
         action_tuple = ActionTuple()
-        action_tuple.add_discrete(np.asarray(action).reshape([1, -1]))
+        action_tuple.add_continuous(np.asarray(action).reshape([1, -1])) #TODO: Check if the reshape fits for continuous as well
+        #action_tuple.add_discrete(np.asarray(action).reshape([1, -1]))
         self._env.set_actions(self._behavior_name, action_tuple)
         self._env.step()
         info, terminal_info = self._env.get_steps(self._behavior_name)
@@ -223,7 +226,8 @@ class UnityWrapper(Env):
         # Episode information
         if done:
             info = {"reward": sum(self._rewards),
-                    "length": len(self._rewards)}
+                    "length": len(self._rewards),
+                    "full_reward": sum(self._rewards)}
         else:
             info = None
 
@@ -281,9 +285,9 @@ class UnityWrapper(Env):
         if len(decision_steps) > 1:
             raise UnityEnvironmentException("The unity environment contains more than one agent, which is not supported.")
         # Verify action space type
-        if not self._behavior_spec.action_spec.is_discrete() or self._behavior_spec.action_spec.is_continuous():
-            raise UnityEnvironmentException("Continuous action spaces are not supported. " 
-                                            "Only discrete and MultiDiscrete spaces are supported.")
+        if not self._behavior_spec.action_spec.is_continuous():
+            raise UnityEnvironmentException("Discrete and MultiDiscrete action spaces are not supported. " 
+                                            "Only continuous spaces are supported.")
         # Verify that at least one observation is provided
         num_vis_obs = 0
         num_vec_obs = 0
