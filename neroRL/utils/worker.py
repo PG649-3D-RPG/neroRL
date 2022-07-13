@@ -56,7 +56,7 @@ class Worker:
             env_config {dict -- The configuration data of the desired environment
             worker_id {int} -- worker_id {int} -- Id for the environment's process. This is necessary for Unity ML-Agents environments, because these operate on different ports.
         """
-        env_seed = randint(0, 2 ** 32 - 1)
+        env_seed = randint(0, 2 ** 32 - 1) #TODO
         self.child, parent = multiprocessing.Pipe()
         self.process = multiprocessing.Process(target=worker_process, args=(parent, env_seed, env_config, worker_id, record_video))
         self.process.start()

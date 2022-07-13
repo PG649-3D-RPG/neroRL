@@ -7,7 +7,7 @@ environment:
   type: "Unity"
   # type: "Unity"
   # Environment Name (Unity environments have to specify the path to the executable)
-  name: "$HOME/Documents/Projektgruppe/Executables/unity_walker"
+  name: "/home/jannik/Documents/Projektgruppe/Executables/Walker_13_07/Walker_13_07"
   # name: "./UnityBuilds/ObstacleTowerReduced/ObstacleTower"
   # How many frames to repeat the same action
   frame_skip: 1
@@ -21,6 +21,8 @@ environment:
   grayscale: False
   # Whether to rescale visual observations to the specified dimensions
   resize_vis_obs: [84, 84]
+  #tanh squashing
+  tanh_squashing: True
   # Reset parameters for the environment
   # At minimum, these parameters set the range of training seeds
   # Environments, like Obstacle Tower, provide more parameters to alter the environment
@@ -38,32 +40,18 @@ model:
   # Save the model after every n-th update
   checkpoint_interval: 50
   # Set the to be used activation function (elu, leaky_relu, relu, swish)
-  activation: "relu"
+  activation: "tanh"
   # Set the to be used visual encoder
   vis_encoder: "cnn"
-  recurrence:
-    # Supported recurrent layers: gru, lstm
-    layer_type: "lstm"
-    # Length of the trained sequences, if set to 0 or smaller the sequence length is dynamically fit to episode lengths
-    sequence_length: 32
-    # Size of the recurrent layer's hidden state
-    hidden_state_size: 128
-    # How to initialize the hidden state (zero, one, mean, sample, learned)
-    hidden_state_init: "zero"
-    # Whether to reset the hidden state before a new episode.
-    # Environments that use short episodes are likely to profit from not resetting the hidden state.
-    reset_hidden_state: True
-    # Wether residual connections should be used for the recurrent layer
-    residual: False
   # Set the to be used vector encoder
   vec_encoder: "linear" # "linear", "none"
-  num_vec_encoder_units: 128
+  num_vec_encoder_units: 256
   # Set the to be used hidden layer
   hidden_layer: "default"
   # Number of hidden layers
   num_hidden_layers: 1
   # Number of hidden units
-  num_hidden_units: 512
+  num_hidden_units: 256
   
 ### EVALUATION CONFIG ###
 evaluation:
@@ -83,9 +71,9 @@ sampler:
   # The TrajectorySampler gathers monte carlo rollouts that may contain truncated episodes
   type: "TrajectorySampler"
   # Number of environments that are used for sampling data
-  n_workers: 1
+  n_workers: 3
   # Number of steps an agent samples data in each environment (batch_size = n_workers * worker_steps)
-  worker_steps: 256
+  worker_steps: 2048
 
 ### TRAINER CONFIG ###
 trainer:
@@ -98,7 +86,7 @@ trainer:
   # Regularization parameter used when calculating the Generalized Advantage Estimation (GAE)
   lamda: 0.95
   # Number of PPO update cycles that shall be done (one whole cycle comprises n epochs of m mini_batch updates)
-  updates: 1000
+  updates: 10000
   # Number of times that the whole batch of data is used for optimization using PPO
   # Each epoch trains on a random permutation of the sampled training batch
   epochs: 4
@@ -109,7 +97,7 @@ trainer:
   n_mini_batches: 4
   # Coefficient of the loss of the value function (i.e. critic)
   # It is only of use if model parameters are shared among the actor and the critic
-  value_coefficient: 0.25
+  value_coefficient: 0.5
   # Strength of clipping the loss gradients
   max_grad_norm: 0.5
   # Wether the actor and critic model should share its parameters

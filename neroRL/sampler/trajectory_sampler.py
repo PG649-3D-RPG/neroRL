@@ -28,6 +28,8 @@ class TrajectorySampler():
         self.worker_steps = configs["sampler"]["worker_steps"]
         self.recurrence = None if not "recurrence" in configs["model"] else configs["model"]["recurrence"]
         self.device = device
+        self.transform = torch.distributions.transforms.TanhTransform(cache_size=1) if "tanh_squashing" in configs["environment"] and configs["environment"]["tanh_squashing"] == True else None
+        
 
         # Create Buffer
         self.buffer = Buffer(self.n_workers, self.worker_steps, visual_observation_space, vector_observation_space,
@@ -105,8 +107,13 @@ class TrajectorySampler():
 
                 # Sample actions
                 action = policy.sample()
-                self.buffer.actions[:, t] = action
-                self.buffer.log_probs[:, t] = policy.log_prob(action).sum(1)
+                squashed_action = self.transform(action) if self.transform is not None else action
+                self.buffer.actions[:, t] = squashed_action
+                
+                if self.transform is not None:
+                    self.buffer.log_probs[:, t] = (policy.log_prob(action) - self.transform.log_abs_det_jacobian(action, squashed_action)).sum(1)
+                else:
+                    self.buffer.log_probs[:, t] = policy.log_prob(action).sum(1)
 
             # Execute actions
             action = self.buffer.actions[:, t].cpu().numpy() # send actions as batch to the CPU, to save IO time
