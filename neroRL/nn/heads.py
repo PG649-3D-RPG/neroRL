@@ -8,17 +8,19 @@ import torch.nn.functional as F
 from neroRL.nn.module import Module
 
 class ContinuousActionPolicy(Module):
-    def __init__(self, in_features, action_space_shape, activ_fn):
+    def __init__(self, in_features, pre_head_features, action_space_shape, activ_fn):
         super().__init__()
         # Set the activation function
         self.activ_fn = activ_fn
         # Linear layer before head
-        self.linear = nn.Linear(in_features=in_features, out_features=64)
+        self.linear = nn.Linear(in_features=in_features, out_features=pre_head_features)
         nn.init.orthogonal_(self.linear.weight, np.sqrt(2))
 
         # Mean of the normal distribution
-        self.mu = nn.Linear(in_features=64, out_features=action_space_shape[0])
+        self.mu = nn.Linear(in_features=pre_head_features, out_features=action_space_shape[0])
         nn.init.orthogonal_(self.mu.weight, np.sqrt(0.01))
+
+        print("action head hidden size ", str(pre_head_features))
 
         # Std of the normal distribution as a learnable parameter
         self.logstd = nn.Parameter(torch.zeros(1, np.prod(action_space_shape)))
@@ -33,42 +35,9 @@ class ContinuousActionPolicy(Module):
 
         return Normal(mu, std)
 
-class MultiDiscreteActionPolicy(Module):
-    """Multi-Discrete Action Space based on categorical distributions"""
-    def __init__(self, in_features, action_space_shape, activ_fn):
-        """
-        Arguments:
-            in_features {int} -- Number of to be fed features
-            action_space_shape {tuple} -- Shape of the action space
-            activ_fn {function} -- The to be applied activation function to the linear layer before feeding the head
-        """
-        super().__init__()
-        # Set the activation function
-        self.activ_fn = activ_fn
-        # Linear layer before head
-        self.linear = nn.Linear(in_features=in_features, out_features=512)
-        nn.init.orthogonal_(self.linear.weight, np.sqrt(2))
-        # Define policy/action dimensions
-        self.policy_branches = nn.ModuleList()
-        for num_actions in action_space_shape:
-            actor_branch = nn.Linear(in_features=512, out_features=num_actions)
-            nn.init.orthogonal_(actor_branch.weight, np.sqrt(0.01))
-            self.policy_branches.append(actor_branch)
-
-    def forward(self, h):
-        """
-        Arguments:
-            h {torch.tensor} -- The fed input data
-
-        Returns:
-            {list} --  A list containing categorical distributions for each action dimension
-        """
-        h = self.activ_fn(self.linear(h))
-        return [Categorical(logits=branch(h)) for branch in self.policy_branches]
-
 class ValueEstimator(Module):
     """Estimation of the value function as part of the agnet's critic"""
-    def __init__(self, in_features, activ_fn):
+    def __init__(self, in_features, pre_head_features, activ_fn):
         """
         Arguments:
             in_features {int} -- Number of to be fed features
@@ -78,11 +47,13 @@ class ValueEstimator(Module):
         # Set the activation function
         self.activ_fn = activ_fn
         # Linear layer before head
-        self.linear = nn.Linear(in_features=in_features, out_features=64)
+        self.linear = nn.Linear(in_features=in_features, out_features=pre_head_features)
         nn.init.orthogonal_(self.linear.weight, np.sqrt(2))
         # Value head
-        self.value = nn.Linear(in_features=64, out_features=1)
+        self.value = nn.Linear(in_features=pre_head_features, out_features=1)
         nn.init.orthogonal_(self.value.weight, 1)
+
+        print("value head hidden size ", str(pre_head_features))
 
     def forward(self, h):
         """

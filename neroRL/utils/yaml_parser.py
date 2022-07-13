@@ -64,7 +64,8 @@ class YamlParser:
             "num_vec_encoder_units": 128,
             "hidden_layer": "default",
             "num_hidden_layers": 2,
-            "num_hidden_units": 512
+            "num_hidden_units": 512,
+            "num_hidden_pre_head": 512
         }
 
         eval_dict = {

@@ -45,13 +45,14 @@ model:
   vis_encoder: "cnn"
   # Set the to be used vector encoder
   vec_encoder: "linear" # "linear", "none"
-  num_vec_encoder_units: 256
+  num_vec_encoder_units: 512
   # Set the to be used hidden layer
   hidden_layer: "default"
   # Number of hidden layers
   num_hidden_layers: 1
   # Number of hidden units
-  num_hidden_units: 256
+  num_hidden_units: 512
+  num_hidden_pre_head: 512
   
 ### EVALUATION CONFIG ###
 evaluation:
@@ -71,7 +72,7 @@ sampler:
   # The TrajectorySampler gathers monte carlo rollouts that may contain truncated episodes
   type: "TrajectorySampler"
   # Number of environments that are used for sampling data
-  n_workers: 3
+  n_workers: 4
   # Number of steps an agent samples data in each environment (batch_size = n_workers * worker_steps)
   worker_steps: 2048
 
