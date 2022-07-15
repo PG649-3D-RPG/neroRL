@@ -26,6 +26,7 @@ model:
   share_parameters: True
   #tanh squashing
   tanh_squashing: True
+  normalize_observations: True
 
 evaluation:
   evaluate: False

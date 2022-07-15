@@ -4,6 +4,8 @@ import torch
 from neroRL.sampler.buffer import Buffer
 from neroRL.utils.worker import Worker
 
+from neroRL.normalization.observation_normalizer import NdNormalizer
+
 class TrajectorySampler():
     """The TrajectorySampler employs n environment workers to sample data for s worker steps regardless if an episode ended.
     Hence, the collected trajectories may contain multiple episodes or incomplete ones."""
@@ -28,8 +30,8 @@ class TrajectorySampler():
         self.worker_steps = configs["sampler"]["worker_steps"]
         self.recurrence = None if not "recurrence" in configs["model"] else configs["model"]["recurrence"]
         self.device = device
-        #self.transform = torch.distributions.transforms.TanhTransform(cache_size=1) if configs["model"]["tanh_squashing"] == True else None
-        
+
+        self.observationNormalizer = NdNormalizer(vector_observation_space) if configs["model"]["normalize_observations"] else None
 
         # Create Buffer
         self.buffer = Buffer(self.n_workers, self.worker_steps, visual_observation_space, vector_observation_space,
@@ -107,13 +109,9 @@ class TrajectorySampler():
 
                 # Sample actions
                 action = policy.sample()
-                #squashed_action = self.transform(action) if self.transform is not None else action
+                
                 self.buffer.actions[:, t] = action
                 
-                #if self.transform is not None:
-                #    self.buffer.log_probs[:, t] = (policy.log_prob(action) - self.transform.log_abs_det_jacobian(action, squashed_action)).sum(1)
-                #else:
-                #    self.buffer.log_probs[:, t] = policy.log_prob(action).sum(1)
                 self.buffer.log_probs[:, t] = policy.log_prob(action).sum(1)
             # Execute actions
             action = self.buffer.actions[:, t].cpu().numpy() # send actions as batch to the CPU, to save IO time
@@ -123,6 +121,10 @@ class TrajectorySampler():
             # Retrieve results
             for w, worker in enumerate(self.workers):
                 vis_obs, vec_obs, self.buffer.rewards[w, t], self.buffer.dones[w, t], info = worker.child.recv()
+
+                if self.observationNormalizer is not None:
+                    vec_obs = self.observationNormalizer.forward(vec_obs)
+                    
                 if self.vis_obs is not None:
                     self.vis_obs[w] = vis_obs
                 if self.vec_obs is not None:
@@ -134,6 +136,10 @@ class TrajectorySampler():
                     worker.child.send(("reset", None))
                     # Get data from reset
                     vis_obs, vec_obs = worker.child.recv()
+                    
+                    if self.observationNormalizer is not None:
+                        vec_obs = self.observationNormalizer.forward(vec_obs)
+
                     if self.vis_obs is not None:
                         self.vis_obs[w] = vis_obs
                     if self.vec_obs is not None:
