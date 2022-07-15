@@ -52,8 +52,7 @@ sampler:
 
 ### TRAINER CONFIG ###
 trainer:
-
-  algorithm: "PPO".
+  algorithm: "PPO"
   resume_at: 0
   gamma: 0.995
   lamda: 0.95
