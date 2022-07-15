@@ -32,7 +32,7 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         self.critic_vis_encoder, self.critic_vec_encoder, self.critic_recurrent_layer, self.critic_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
 
         # Policy head/output
-        self.actor_policy = ContinuousActionPolicy(in_features = self.out_features_body, pre_head_features=config["num_hidden_pre_head"], action_space_shape = action_space_shape, activ_fn = self.activ_fn)
+        self.actor_policy = ContinuousActionPolicy(in_features = self.out_features_body, pre_head_features=config["num_hidden_pre_head"], action_space_shape = action_space_shape, activ_fn = self.activ_fn, tanh_squashing= config["tanh_squashing"])
 
         # Value function head/output
         self.critic = ValueEstimator(in_features = self.out_features_body, pre_head_features=config["num_hidden_pre_head"], activ_fn = self.activ_fn)
@@ -282,7 +282,7 @@ class ActorCriticSharedWeights(ActorCriticBase):
         self.vis_encoder, self.vec_encoder, self.recurrent_layer, self.body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
 
         # Policy head/output
-        self.actor_policy = ContinuousActionPolicy(self.out_features_body, config["num_hidden_pre_head"], action_space_shape, self.activ_fn)
+        self.actor_policy = ContinuousActionPolicy(self.out_features_body, config["num_hidden_pre_head"], action_space_shape, self.activ_fn, config["tanh_squashing"])
 
         # Value function head/output
         self.critic = ValueEstimator(self.out_features_body, config["num_hidden_pre_head"], self.activ_fn)

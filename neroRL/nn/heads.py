@@ -3,12 +3,13 @@ import torch
 from torch import nn
 from torch.distributions.categorical import Categorical
 from torch.distributions.normal import Normal
+from neroRL.distributions.distributions import TanhGaussianDistInstance
 import torch.nn.functional as F
 
 from neroRL.nn.module import Module
 
 class ContinuousActionPolicy(Module):
-    def __init__(self, in_features, pre_head_features, action_space_shape, activ_fn):
+    def __init__(self, in_features, pre_head_features, action_space_shape, activ_fn, tanh_squashing):
         super().__init__()
         # Set the activation function
         self.activ_fn = activ_fn
@@ -19,6 +20,8 @@ class ContinuousActionPolicy(Module):
         # Mean of the normal distribution
         self.mu = nn.Linear(in_features=pre_head_features, out_features=action_space_shape[0])
         nn.init.orthogonal_(self.mu.weight, np.sqrt(0.01))
+
+        self.tanh_squashing = tanh_squashing
 
         print("action head hidden size ", str(pre_head_features))
 
@@ -33,7 +36,10 @@ class ContinuousActionPolicy(Module):
         logstd = self.logstd.expand_as(mu)
         std = torch.exp(logstd)
 
-        return Normal(mu, std)
+        if(self.tanh_squashing):
+            return TanhGaussianDistInstance(mu, std)
+        else:
+            return Normal(mu, std)
 
 class ValueEstimator(Module):
     """Estimation of the value function as part of the agnet's critic"""

@@ -65,7 +65,8 @@ class YamlParser:
             "hidden_layer": "default",
             "num_hidden_layers": 2,
             "num_hidden_units": 512,
-            "num_hidden_pre_head": 512
+            "num_hidden_pre_head": 512,
+            "tanh_squashing": False
         }
 
         eval_dict = {

@@ -7,8 +7,6 @@ environment:
   last_action_to_obs: False
   last_reward_to_obs: False
   obs_stacks: 1
-  #tanh squashing
-  tanh_squashing: True
   reset_params:
     start-seed: 0
     num-seeds: 100
@@ -26,6 +24,8 @@ model:
   num_hidden_units: 128
   num_hidden_pre_head: 128
   share_parameters: True
+  #tanh squashing
+  tanh_squashing: True
 
 evaluation:
   evaluate: False
