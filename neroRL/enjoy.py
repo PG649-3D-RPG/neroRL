@@ -155,6 +155,7 @@ def main():
                 action = action.squeeze().cpu().numpy()
                 if action_space_shape[0] == 1:
                     action = [action]
+                print(",".join(action))
                 vis_obs, vec_obs, _, done, info = env.step(action)
 
         logger.info("Episode Reward: " + str(info["reward"]))
