@@ -73,15 +73,17 @@ class PPOTrainer(BaseTrainer):
                     mini_batch_generator = self.sampler.buffer.recurrent_mini_batch_generator(self.n_mini_batches)
                 else:
                     mini_batch_generator = self.sampler.buffer.mini_batch_generator(self.n_mini_batches)
+                mini_batch_count = 0
                 # Conduct the training
                 for mini_batch in mini_batch_generator:
+                    mini_batch_count += 1
                     res,early_stop = self.train_mini_batch(mini_batch)
                     # Collect all values of the training procedure in a list
                     for key, (tag, value) in res.items():
                         train_info.setdefault(key, (tag, []))[1].append(value)
-                if early_stop:
-                    print("early stop at epoch: " +str(epoch) + " " + str(res["kl_divergence"]))
-                    break
+                    if early_stop:
+                        print("early stop at epoch: " +str(epoch) + " at mini batch number " + str(mini_batch_count) + " " + str(res["kl_divergence"]))
+                        break
         # Calculate mean of the collected training statistics
         for key, (tag, values) in train_info.items():
             train_info[key] = (tag, np.mean(values))
