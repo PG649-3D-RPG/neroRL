@@ -24,7 +24,7 @@ environment:
 ### MODEL CONFIG ###
 model:
   load_model: False
-  model_path: "/home/jannik/InstallGits/neroRL/checkpoints/UnityWalkerUnityUnsharedNormalizeLearnedStd8x1024/20220728-170655_6500/UnityWalkerUnityUnsharedNormalizeLearnedStd8x1024-2529.pt"
+  model_path: "path/to/model.pt"
   checkpoint_interval: 50
   activation: "tanh"
   vis_encoder: "cnn"
@@ -34,7 +34,7 @@ model:
   num_hidden_layers: 3
   num_hidden_units: 512
   num_hidden_pre_head: 512
-  tanh_squashing: False
+  tanh_squashing: True
   normalize_observations: True
   share_parameters: False
 
@@ -49,7 +49,7 @@ evaluation:
 sampler:
   type: "TrajectorySampler"
   n_workers: 8
-  worker_steps: 1024
+  worker_steps: 256
 
 ### TRAINER CONFIG ###
 trainer:
@@ -63,6 +63,8 @@ trainer:
   n_mini_batches: 4
   value_coefficient: 0.5
   max_grad_norm: 0.5
+  use_early_stop: True
+  early_stop_target: 0.12
   share_parameters: True
   learning_rate_schedule:
     initial: 3.0e-4

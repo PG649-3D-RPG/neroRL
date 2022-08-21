@@ -44,7 +44,7 @@ class UnityWrapper(Env):
         if realtime_mode:
             self.engine_config.set_configuration_parameters(time_scale=1.0, width=1280, height=720)
         else:
-            self.engine_config.set_configuration_parameters(time_scale=30.0, width=256, height=256)
+            self.engine_config.set_configuration_parameters(time_scale=10.0, width=256, height=256)
 
         # Whether to record the trajectory of an entire episode
         self._record = record_trajectory
@@ -52,7 +52,7 @@ class UnityWrapper(Env):
         # Launch the environment's executable
         self._env = UnityEnvironment(file_name = env_path, worker_id = worker_id, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config], timeout_wait=300)
         # If the Unity Editor should be used instead of a build
-        #self._env = UnityEnvironment(file_name = None, worker_id = 0, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config])
+        # self._env = UnityEnvironment(file_name = None, worker_id = 0, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config])
 
         # Reset the environment
         self._env.reset()

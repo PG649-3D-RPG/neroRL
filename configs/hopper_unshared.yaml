@@ -18,13 +18,14 @@ model:
   activation: "tanh"
   vis_encoder: "cnn"
   vec_encoder: "linear"
-  num_vec_encoder_units: 256
+  num_vec_encoder_units: 128
   hidden_layer: "default"
   num_hidden_layers: 1
-  num_hidden_units: 256
-  num_hidden_pre_head: 256
-  share_parameters: True
+  num_hidden_units: 128
+  num_hidden_pre_head: 128
+  share_parameters: False
   tanh_squashing: True
+  normalize_observations: True
 
 evaluation:
   evaluate: False

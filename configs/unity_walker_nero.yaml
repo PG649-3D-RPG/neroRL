@@ -49,10 +49,12 @@ model:
   # Set the to be used hidden layer
   hidden_layer: "default"
   # Number of hidden layers
-  num_hidden_layers: 1
+  num_hidden_layers: 2
   # Number of hidden units
   num_hidden_units: 512
   num_hidden_pre_head: 512
+  normalize_observations: True
+  tanh_squashing: True
   
 ### EVALUATION CONFIG ###
 evaluation:
@@ -72,9 +74,9 @@ sampler:
   # The TrajectorySampler gathers monte carlo rollouts that may contain truncated episodes
   type: "TrajectorySampler"
   # Number of environments that are used for sampling data
-  n_workers: 4
+  n_workers: 8
   # Number of steps an agent samples data in each environment (batch_size = n_workers * worker_steps)
-  worker_steps: 2048
+  worker_steps: 1024
 
 ### TRAINER CONFIG ###
 trainer:

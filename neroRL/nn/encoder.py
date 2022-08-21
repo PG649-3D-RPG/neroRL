@@ -222,7 +222,7 @@ class BasicConvBlock(Module):
         h = h + h_identity
         return h
 
-class LinVecEncoder(Module):
+class LinVecEncoder(Module): #TODO: compare to MLAgents encoders.py VectorInput, possibly change this so it is not actually a nn.Linear layer but just normalizes the input and returns it
     """
     A simple one linear layer vector encoder.
     """

@@ -1,4 +1,5 @@
 from torch import nn
+import torch
 import numpy as np
 
 from neroRL.nn.module import Module
@@ -27,7 +28,9 @@ class HiddenLayer(Module):
         hidden_layer_modules = []
         for _ in range(num_hidden_layers):
             linear_layer = nn.Linear(in_features=in_features, out_features=out_features)
-            nn.init.orthogonal_(linear_layer.weight, np.sqrt(2))
+            # nn.init.orthogonal_(linear_layer.weight, np.sqrt(2))
+            nn.init.kaiming_normal_(linear_layer.weight.data, nonlinearity="linear")
+            torch.zero_(linear_layer.bias.data)
             hidden_layer_modules.append(linear_layer)
             hidden_layer_modules.append(activ_fn) # add activation function
             in_features = out_features
