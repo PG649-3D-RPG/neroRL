@@ -1,3 +1,4 @@
+from turtle import done
 import numpy as np
 
 from gym import error, spaces
@@ -56,6 +57,9 @@ class UnityWrapper(Env):
 
         # Reset the environment
         self._env.reset()
+
+        # Mapp the agent ids to indices
+        
         # Retrieve behavior configuration
         self._behavior_name = list(self._env.behavior_specs)[0]
         self._behavior_spec = self._env.behavior_specs[self._behavior_name]
@@ -105,6 +109,9 @@ class UnityWrapper(Env):
         else:
             self._vector_observatoin_space = None
 
+        # Declare agent id mapping dictionary
+        self.agent_id_map = None
+
         # Videos can only be recorded if the environment provides visual observations
         if self._record and self._visual_observation_space is None:
             UnityEnvironmentException("Videos cannot be rendered for a Unity environment that does not provide visual observations.")
@@ -151,9 +158,6 @@ class UnityWrapper(Env):
             {numpy.ndarray} -- Visual observation
             {numpy.ndarray} -- Vector observation
         """
-        # Track rewards of an entire episode
-        self._rewards = []
-
         # Use initial or new reset parameters
         if reset_params is None:
             reset_params = self._default_reset_parameters
@@ -175,20 +179,27 @@ class UnityWrapper(Env):
         self.reset_parameters.set_float_parameter("seed", seed)
 
         # Reset and verify the environment
-        self._env.reset()
-        info, terminal_info = self._env.get_steps(self._behavior_name)
-        self._verify_environment()
+        # self._env.reset()
+        #info, terminal_info = self._env.get_steps(self._behavior_name)
+        #self._verify_environment()
+
+        # make next step (Unity environment will automatically perform internal reset)
+        #self._env.step()
+        info, terminal_info = self._env.get_steps(self._behavior_name) 
         
         # Retrieve initial observations
-        vis_obs, vec_obs, _, _ = self._process_agent_info(info, terminal_info)
+        vis_obs, vec_obs, rewards, agent_ids, actions_next_step = self._process_agent_info(info, terminal_info)
+
+        # Track rewards of an entire episode
+        self._rewards = [ [] for x in self.agent_id_map ]
 
         # Prepare trajectory recording
-        self._trajectory = {
-            "vis_obs": None, "vec_obs": [vec_obs],
-            "rewards": [0.0], "actions": []
-        }
+        # self._trajectory = {
+        #     "vis_obs": None, "vec_obs": [vec_obs],
+        #     "rewards": [0.0], "actions": []
+        # }
 
-        return vis_obs, vec_obs
+        return vis_obs, vec_obs, agent_ids, actions_next_step
 
     def step(self, action):
         """Runs one timestep of the environment"s dynamics.
@@ -206,32 +217,36 @@ class UnityWrapper(Env):
         """
         # Carry ot the agent's action
         action_tuple = ActionTuple()
-        action_tuple.add_continuous(np.asarray(action).reshape([1, -1])) #TODO: Check if the reshape fits for continuous as well
+        action_tuple.add_continuous(np.asarray(action).reshape([1, -1])) #TODO: reshape so that actions for all agents in multi-agent build are considered
         #action_tuple.add_discrete(np.asarray(action).reshape([1, -1]))
         self._env.set_actions(self._behavior_name, action_tuple)
         self._env.step()
         info, terminal_info = self._env.get_steps(self._behavior_name)
 
         # Process step results
-        vis_obs, vec_obs, reward, done = self._process_agent_info(info, terminal_info)
-        self._rewards.append(reward)
+        vis_obs, vec_obs, rewards, agent_ids, actions_next_step = self._process_agent_info(info, terminal_info)
+        #self._rewards.append(reward)
+        for (agent_id, reward) in zip(agent_ids, rewards):
+            self._rewards[ self.agent_id_map[agent_id] ].append( reward )
 
         # Record trajectory data
-        if self._record:
-            self._trajectory["vis_obs"].append(None)
-            self._trajectory["vec_obs"].append(vec_obs)
-            self._trajectory["rewards"].append(reward)
-            self._trajectory["actions"].append(action)
+        # if self._record:
+        #     self._trajectory["vis_obs"].append(None)
+        #     self._trajectory["vec_obs"].append(vec_obs)
+        #     self._trajectory["rewards"].append(reward)
+        #     self._trajectory["actions"].append(action)
 
         # Episode information
-        if done:
-            info = {"reward": sum(self._rewards),
-                    "length": len(self._rewards),
-                    "full_reward": sum(self._rewards)}
-        else:
-            info = None
+        episode_end_info = []
+        for x in range(actions_next_step, len(agent_ids)):
+            done_agent_id = agent_ids[x]
+            done_agent_index = self.agent_id_map[done_agent_id]
+            episode_end_info.append(done_agent_id,{"reward": sum(self._rewards[done_agent_index]),
+                    "length": len(self._rewards[done_agent_index]),
+                    "full_reward": sum(self._rewards[done_agent_index])})
+            self._rewards[done_agent_index] = []
 
-        return vis_obs, vec_obs, reward, done, info
+        return vis_obs, vec_obs, rewards, agent_ids, actions_next_step, episode_end_info
 
     def close(self):
         """Shut down the environment."""
@@ -250,40 +265,43 @@ class UnityWrapper(Env):
             reward {float} -- Reward signal from the environment
             done {bool} -- Whether the episode terminated or not
         """
-        # Determine if the episode terminated or not
-        if len(terminal_info) == 0:
-            done = False
-            use_info = info
+        # Process agent id map
+        if self.agent_id_map is None:
+            self.agent_id_map = {}
+            for agent_id in np.concatenate(info.agent_id, terminal_info.agent_id):
+                self.agent_id_map[agent_id] = len(self.agent_id_map.items)
+            self._rewards = [ [] for x in self.agent_id_map ]
         else:
-            done = True
-            use_info = terminal_info
+            #if this case happens, there will most likely be some exceptions / errors due to arrays or lists that do not have the correct length
+            for agent_id in np.concatenate(info.agent_id, terminal_info.agent_id):
+                if agent_id in self.agent_id_map:
+                    self.agent_id_map[agent_id] = len(self.agent_id_map.items)
+                    
 
         # Process visual observations
-        if self.visual_observation_space is not None:
-            vis_obs = use_info.obs[self._vis_obs_index][0]
-        else:
-            vis_obs = None
+        vis_obs = None
 
         # Process vector observations
+        use_info = np.concatenate(info.obs, terminal_info.obs)
         if self.vector_observation_space is not None:
             for i, dim in enumerate(self._vec_obs_indices):
                 if i == 0:
-                    vec_obs = use_info.obs[dim][0]
+                    vec_obs = use_info.obs[dim][:]#[0]
                 else:
-                    vec_obs = np.concatenate((vec_obs, use_info.obs[dim][0]))
+                    vec_obs = np.concatenate((vec_obs, use_info.obs[dim][:]))
         else:
             vec_obs = None
 
-        return vis_obs, vec_obs, use_info.reward[0], done
+        return vis_obs, vec_obs, np.concatenate(info.reward, terminal_info.reward), np.concatenate(info.agent_id, terminal_info.agent_id), len(info.agent_id)
 
     def _verify_environment(self):
         # Verify number of agent behavior types
         if len(self._env.behavior_specs) != 1:
             raise UnityEnvironmentException("The unity environment containts more than one agent type.")
         # Verify number of agents
-        decision_steps, _ = self._env.get_steps(self._behavior_name)
-        if len(decision_steps) > 1:
-            raise UnityEnvironmentException("The unity environment contains more than one agent, which is not supported.")
+        # decision_steps, _ = self._env.get_steps(self._behavior_name)
+        # if len(decision_steps) > 1:
+        #     raise UnityEnvironmentException("The unity environment contains more than one agent, which is not supported.")
         # Verify action space type
         if not self._behavior_spec.action_spec.is_continuous():
             raise UnityEnvironmentException("Discrete and MultiDiscrete action spaces are not supported. " 

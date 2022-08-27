@@ -60,16 +60,24 @@ class TrajectorySampler():
         else:
             self.recurrent_cell = None
 
+        self.agent_id_map = [{} for _ in len(self.workers)]
+        self.actions_next_step = [ [] for _ in len(self.workers)]
         # Reset workers
         for worker in self.workers:
             worker.child.send(("reset", None))
         # Grab initial observations
-        for i, worker in enumerate(self.workers):
-            vis_obs, vec_obs = worker.child.recv()
+        for w, worker in enumerate(self.workers):
+            vis_obs, vec_obs, agent_ids, actions_next_step = worker.child.recv()
             if self.vis_obs is not None:
-                self.vis_obs[i] = vis_obs
+                self.vis_obs[w] = vis_obs
             if self.vec_obs is not None:
-                self.vec_obs[i] = vec_obs
+                self.vec_obs[w] = vec_obs
+
+            for agent_id in agent_ids:
+                self.agent_id_map[w][agent_id] = len(self.agent_id_map[w].items)
+
+            self.actions_next_step[w] = list(agent_ids[:actions_next_step])
+
 
     def sample(self, device) -> list:
         """Samples training data (i.e. experience tuples) using n workers for t worker steps.
@@ -122,6 +130,10 @@ class TrajectorySampler():
 
             # Retrieve results
             for w, worker in enumerate(self.workers):
+                vis_obs, vec_obs, rewards, agent_ids, actions_next_step, episode_end_info = worker.child.recv()
+
+                self.buffer.rewards[w, t] #TODO: adapt all buffers to a [worker, agent, entrys] shape, entrys can either be part of the nparray with length worker_steps or a list (depends on what is more efficient)
+
                 vis_obs, vec_obs, self.buffer.rewards[w, t], self.buffer.dones[w, t], info = worker.child.recv()
 
                 if self.observationNormalizer is not None:
@@ -135,26 +147,26 @@ class TrajectorySampler():
                     # Store the information of the completed episode (e.g. total reward, episode length)
                     episode_infos.append(info)
                     # Reset agent (potential interface for providing reset parameters)
-                    worker.child.send(("reset", None))
+                    # worker.child.send(("reset", None))
                     # Get data from reset
-                    vis_obs, vec_obs = worker.child.recv()
+                    # vis_obs, vec_obs = worker.child.recv()
                     
-                    if self.observationNormalizer is not None:
-                        vec_obs = self.observationNormalizer.forward(vec_obs)
+                    # if self.observationNormalizer is not None:
+                    #     vec_obs = self.observationNormalizer.forward(vec_obs)
 
-                    if self.vis_obs is not None:
-                        self.vis_obs[w] = vis_obs
-                    if self.vec_obs is not None:
-                        self.vec_obs[w] = vec_obs
-                    # Reset recurrent cell states
-                    if self.recurrence is not None:
-                        if self.recurrence["reset_hidden_state"]:
-                            hxs, cxs = self.model.init_recurrent_cell_states(1, self.device)
-                            if self.recurrence["layer_type"] == "gru":
-                                self.recurrent_cell[:, w] = hxs
-                            elif self.recurrence["layer_type"] == "lstm":
-                                self.recurrent_cell[0][:, w] = hxs
-                                self.recurrent_cell[1][:, w] = cxs
+                    # if self.vis_obs is not None:
+                    #     self.vis_obs[w] = vis_obs
+                    # if self.vec_obs is not None:
+                    #     self.vec_obs[w] = vec_obs
+                    # # Reset recurrent cell states
+                    # if self.recurrence is not None:
+                    #     if self.recurrence["reset_hidden_state"]:
+                    #         hxs, cxs = self.model.init_recurrent_cell_states(1, self.device)
+                    #         if self.recurrence["layer_type"] == "gru":
+                    #             self.recurrent_cell[:, w] = hxs
+                    #         elif self.recurrence["layer_type"] == "lstm":
+                    #             self.recurrent_cell[0][:, w] = hxs
+                    #             self.recurrent_cell[1][:, w] = cxs
 
         return episode_infos
 
