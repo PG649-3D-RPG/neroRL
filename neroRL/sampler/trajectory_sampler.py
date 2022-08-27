@@ -130,9 +130,6 @@ class TrajectorySampler():
                 if self.vis_obs is not None:
                     self.vis_obs[w] = vis_obs
                 if self.vec_obs is not None:
-                    if np.any(np.isnan(vec_obs)):
-                        print("Some of the observations are nan")
-                        print("vec_obs ", str(vec_obs))
                     self.vec_obs[w] = vec_obs
                 if info:
                     # Store the information of the completed episode (e.g. total reward, episode length)

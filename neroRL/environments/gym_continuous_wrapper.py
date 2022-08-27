@@ -42,7 +42,7 @@ class GymContinuousWrapper(Env):
 
         #wrap environment with gym wrappers similar to cleanrl
         self._env = gym.wrappers.RecordEpisodeStatistics(self._env)
-        #self._env = gym.wrappers.ClipAction(self._env) #very important, as e.g. MountainCar uses actual action value to calculate rewards
+        self._env = gym.wrappers.ClipAction(self._env) #very important, as e.g. MountainCar uses actual action value to calculate rewards
         #self._env = gym.wrappers.NormalizeObservation(self._env)
         self._env = gym.wrappers.TransformObservation(self._env, lambda obs: np.clip(obs, -10, 10))
         self._env = gym.wrappers.NormalizeReward(self._env)

@@ -31,37 +31,19 @@ class ContinuousActionPolicy(Module):
 
         self.tanh_squashing = tanh_squashing
 
-        print("action head hidden size ", str(pre_head_features))
-
         # Std of the normal distribution as a learnable parameter
         self.logstd = nn.Parameter(torch.zeros(1, np.prod(action_space_shape), requires_grad=True))
 
+        #uncomment this line if a fixed std should be used
         # self.logstd = torch.full((1, np.prod(action_space_shape)), 0.2, dtype=torch.float32)
 
     def forward(self, h):
-        if h.isnan().any():
-            print("input h is nan at head")
         # Feed hidden layer
         h = self.activ_fn(self.linear(h))
 
         mu = self.mu(h)
         logstd = self.logstd.expand_as(mu)
         std = torch.exp(logstd)
-
-        if self.logstd.isnan().any():
-            print("self logst is nan ", str(self.logstd))
-        if logstd.isnan().any():
-            print("logstd is nan ", str(logstd))
-        if std.isnan().any():
-            print("std is nan ", str(std))
-
-        if mu.isnan().any():
-            print("mean of head is nan")
-
-        if h.isnan().any():
-            print("h is nan at head")
-
-        
 
         if(self.tanh_squashing):
             return TanhGaussianDistInstance(mu, std)

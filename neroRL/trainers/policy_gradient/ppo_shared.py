@@ -134,14 +134,6 @@ class PPOTrainer(BaseTrainer):
         surr2 = torch.clamp(ratio, 1.0 - self.clip_range, 1.0 + self.clip_range) * normalized_advantage
         policy_loss = torch.min(surr1, surr2)
         policy_loss = masked_mean(policy_loss, samples["loss_mask"])
-        if(math.isnan(policy_loss)):
-            print("Policy loss is nan")
-            #print("surr1 ", str(surr1))
-            #print("surr2 ", str(surr2))
-            #print("ratio ", str(ratio))
-            print("log_probs ", str(log_probs))
-            print("sample log probs ", str(samples["log_probs"]))
-            #print("normalized advantage ", normalized_advantage)
 
         # Value
         sampled_return = samples["values"] + samples["advantages"]
