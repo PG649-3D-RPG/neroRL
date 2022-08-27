@@ -1,6 +1,7 @@
 import abc
+from inspect import Attribute
 from typing import List
-from torch import torch, nn
+from torch import torch, nn, unsqueeze
 import numpy as np
 import math
 
@@ -52,6 +53,10 @@ class GaussianDistInstance(DistInstance):
         self.mean = mean
         self.std = std
 
+    @property
+    def stddev(self):
+        return self.std
+
     def sample(self):
         sample = self.mean + torch.randn_like(self.mean) * self.std
         return sample
@@ -59,14 +64,21 @@ class GaussianDistInstance(DistInstance):
     def deterministic_sample(self):
         return self.mean
 
+    # def std(self):
+    #     return self.std
+
     def log_prob(self, value):
         var = self.std ** 2
+
         log_scale = torch.log(self.std + EPSILON)
-        return (
+
+        log_prob = (
             -((value - self.mean) ** 2) / (2 * var + EPSILON)
             - log_scale
             - math.log(math.sqrt(2 * math.pi))
         )
+
+        return log_prob
 
     def pdf(self, value):
         log_prob = self.log_prob(value)
@@ -98,7 +110,11 @@ class TanhGaussianDistInstance(GaussianDistInstance):
         return 0.5 * torch.log((1 + capped_value) / (1 - capped_value) + EPSILON)
 
     def log_prob(self, value):
-        unsquashed = self.transform.inv(value)
-        return super().log_prob(unsquashed) - self.transform.log_abs_det_jacobian(
+        #unsquashed = self.transform.inv(value)
+        unsquashed = self._inverse_tanh(value)
+
+        log_prob = super().log_prob(unsquashed) - self.transform.log_abs_det_jacobian(
             unsquashed, value
         )
+
+        return log_prob

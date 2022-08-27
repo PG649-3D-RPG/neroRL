@@ -1,6 +1,8 @@
+import math
 import torch
 import numpy as np
 from torch import optim
+from neroRL.distributions.distributions import TanhGaussianDistInstance
 
 from neroRL.nn.actor_critic import create_actor_critic_model
 from neroRL.trainers.policy_gradient.base import BaseTrainer
@@ -29,6 +31,10 @@ class PPOTrainer(BaseTrainer):
         self.epochs = configs["trainer"]["epochs"]
         self.vf_loss_coef = self.configs["trainer"]["value_coefficient"]
         self.n_mini_batches = configs["trainer"]["n_mini_batches"]
+
+        self.use_early_stop = configs["trainer"]['use_early_stop']
+        self.early_stop_target = configs["trainer"]['early_stop_target']
+
         batch_size = self.n_workers * self.worker_steps
         assert (batch_size % self.n_mini_batches == 0), "Batch Size divided by number of mini batches has a remainder."
         self.max_grad_norm = configs["trainer"]["max_grad_norm"]
@@ -37,9 +43,12 @@ class PPOTrainer(BaseTrainer):
         self.beta_schedule = configs["trainer"]["beta_schedule"]
         self.cr_schedule = configs["trainer"]["clip_range_schedule"]
 
+        self.tanhsquash = configs["model"]["tanh_squashing"]
+
         self.learning_rate = self.lr_schedule["initial"]
         self.beta = self.beta_schedule["initial"]
         self.clip_range = self.cr_schedule["initial"]
+
 
         # Instantiate optimizer
         self.optimizer = optim.AdamW(self.model.parameters(), lr=self.learning_rate, eps=1e-5)
@@ -51,24 +60,30 @@ class PPOTrainer(BaseTrainer):
     def train(self):
         train_info = {}
 
+        early_stop = False
         # Train policy and value function for e epochs using mini batches
         for epoch in range(self.epochs):
-            # Refreshes buffer with current model for every refresh_buffer_epoch
-            if epoch > 0 and epoch % self.refresh_buffer_epoch == 0 and self.refresh_buffer_epoch > 0:
-                self.sampler.buffer.refresh(self.model, self.gamma, self.lamda)
-            # Retrieve the to be trained mini_batches via a generator
-            # Use the recurrent mini batch generator for training a recurrent policy
-            if self.recurrence is not None:
-                mini_batch_generator = self.sampler.buffer.recurrent_mini_batch_generator(self.n_mini_batches)
-            else:
-                mini_batch_generator = self.sampler.buffer.mini_batch_generator(self.n_mini_batches)
-            # Conduct the training
-            for mini_batch in mini_batch_generator:
-                res = self.train_mini_batch(mini_batch)
-                # Collect all values of the training procedure in a list
-                for key, (tag, value) in res.items():
-                    train_info.setdefault(key, (tag, []))[1].append(value)
-
+            if not early_stop:
+                # Refreshes buffer with current model for every refresh_buffer_epoch
+                if epoch > 0 and epoch % self.refresh_buffer_epoch == 0 and self.refresh_buffer_epoch > 0:
+                    self.sampler.buffer.refresh(self.model, self.gamma, self.lamda)
+                # Retrieve the to be trained mini_batches via a generator
+                # Use the recurrent mini batch generator for training a recurrent policy
+                if self.recurrence is not None:
+                    mini_batch_generator = self.sampler.buffer.recurrent_mini_batch_generator(self.n_mini_batches)
+                else:
+                    mini_batch_generator = self.sampler.buffer.mini_batch_generator(self.n_mini_batches)
+                mini_batch_count = 0
+                # Conduct the training
+                for mini_batch in mini_batch_generator:
+                    mini_batch_count += 1
+                    res,early_stop = self.train_mini_batch(mini_batch)
+                    # Collect all values of the training procedure in a list
+                    for key, (tag, value) in res.items():
+                        train_info.setdefault(key, (tag, []))[1].append(value)
+                    if early_stop:
+                        print("early stop at epoch: " +str(epoch) + " at mini batch number " + str(mini_batch_count) + " " + str(res["kl_divergence"]))
+                        break
         # Calculate mean of the collected training statistics
         for key, (tag, values) in train_info.items():
             train_info[key] = (tag, np.mean(values))
@@ -131,20 +146,31 @@ class PPOTrainer(BaseTrainer):
         vf_loss = masked_mean(vf_loss, samples["loss_mask"])
         vf_loss = 0.5 * vf_loss #added this corresponding to cleanRL ppo_continuous_action.py line 300/302 (this essentially sets the vf_coefficient to 0.5*0.5=0.25 which was the original value in the config)
 
+
         # Entropy Bonus
         entropy_bonus = masked_mean(policy.entropy().sum(1), samples["loss_mask"])
+        # if squashing is used, then do not use entropy
+        if self.tanhsquash:
+            entropy_bonus = torch.zeros(entropy_bonus.size()) #use this if entropy should always be zero
+
 
         # Complete loss
         loss = -(policy_loss - self.vf_loss_coef * vf_loss + self.beta * entropy_bonus)
 
-        # Compute gradients
-        self.optimizer.zero_grad()
-        loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.max_grad_norm)
-        self.optimizer.step()
 
         # Monitor additional training statistics
+        early_stop = False 
         approx_kl = masked_mean((ratio - 1.0) - log_ratio, samples["loss_mask"]) # http://joschu.net/blog/kl-approx.html
+        if self.use_early_stop and approx_kl > 1.5 * self.early_stop_target:
+            early_stop = True
+
+        # Compute gradients
+        if not early_stop:
+            self.optimizer.zero_grad()
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=self.max_grad_norm)
+            self.optimizer.step()
+
         clip_fraction = (abs((ratio - 1.0)) > self.clip_range).float().mean()
 
         if self.model.share_parameters:
@@ -158,7 +184,7 @@ class PPOTrainer(BaseTrainer):
                 "loss": (Tag.LOSS, loss.cpu().data.numpy()),
                 "entropy": (Tag.OTHER, entropy_bonus.cpu().data.numpy()),
                 "kl_divergence": (Tag.OTHER, approx_kl.cpu().data.numpy()),
-                "clip_fraction": (Tag.OTHER, clip_fraction.cpu().data.numpy())}
+                "clip_fraction": (Tag.OTHER, clip_fraction.cpu().data.numpy())},early_stop
 
     def step_decay_schedules(self, update):
         self.learning_rate = polynomial_decay(self.lr_schedule["initial"], self.lr_schedule["final"],

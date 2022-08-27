@@ -109,6 +109,8 @@ class TrajectorySampler():
 
                 # Sample actions
                 action = policy.sample()
+
+                self.buffer.std = policy.stddev
                 
                 self.buffer.actions[:, t] = action
                 

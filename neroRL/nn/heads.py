@@ -15,18 +15,27 @@ class ContinuousActionPolicy(Module):
         self.activ_fn = activ_fn
         # Linear layer before head
         self.linear = nn.Linear(in_features=in_features, out_features=pre_head_features)
-        nn.init.orthogonal_(self.linear.weight, np.sqrt(2))
+        # nn.init.orthogonal_(self.linear.weight, np.sqrt(2))
+        # nn.init.orthogonal_(self.linear.weight, 1)
+        nn.init.kaiming_normal_(self.linear.weight.data, nonlinearity="linear")
+        torch.zero_(self.linear.bias.data)
 
         # Mean of the normal distribution
         self.mu = nn.Linear(in_features=pre_head_features, out_features=action_space_shape[0])
-        nn.init.orthogonal_(self.mu.weight, np.sqrt(0.01))
+        # nn.init.orthogonal_(self.mu.weight, np.sqrt(0.01))
+        # nn.init.orthogonal_(self.mu.weight, 0.01)
+        # nn.init.constant_(self.mu.bias, 0.0)
+        nn.init.kaiming_normal_(self.mu.weight.data, nonlinearity="linear")
+        self.mu.weight.data *= 0.2 #kernel gain taken from MLAgents from distributions.py for GaussianDistribution
+        torch.zero_(self.mu.bias.data)
 
         self.tanh_squashing = tanh_squashing
 
-        print("action head hidden size ", str(pre_head_features))
-
         # Std of the normal distribution as a learnable parameter
-        self.logstd = nn.Parameter(torch.zeros(1, np.prod(action_space_shape)))
+        self.logstd = nn.Parameter(torch.zeros(1, np.prod(action_space_shape), requires_grad=True))
+
+        #uncomment this line if a fixed std should be used
+        # self.logstd = torch.full((1, np.prod(action_space_shape)), 0.2, dtype=torch.float32)
 
     def forward(self, h):
         # Feed hidden layer
@@ -57,7 +66,8 @@ class ValueEstimator(Module):
         nn.init.orthogonal_(self.linear.weight, np.sqrt(2))
         # Value head
         self.value = nn.Linear(in_features=pre_head_features, out_features=1)
-        nn.init.orthogonal_(self.value.weight, 1)
+        # nn.init.orthogonal_(self.value.weight, 1)
+        nn.init.xavier_uniform_(self.value.weight.data)
 
         print("value head hidden size ", str(pre_head_features))
 

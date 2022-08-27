@@ -94,6 +94,8 @@ class YamlParser:
             "n_mini_batches": 4,
             "value_coefficient": 0.25,
             "max_grad_norm": 0.5,
+            "use_early_stop": False,
+            "early_stop_target": 0,
             "share_parameters": True,
             "learning_rate_schedule": {"initial": 3.0e-4},
             "beta_schedule": {"initial": 0.001},
