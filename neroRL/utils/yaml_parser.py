@@ -80,7 +80,9 @@ class YamlParser:
         sampler_dict = {
             "type": "TrajectorySampler",
             "n_workers": 16,
-            "worker_steps": 256
+            "worker_steps": 256,
+            "buffer_size": 1024,
+            "batch_size": 8192
         }
 
         ppo_dict = {
@@ -252,6 +254,9 @@ class YamlParser:
             if "DAAC" in self._config["trainer"]:
                 if "adv_coefficient" not in self._config["trainer"]["DAAC"]:
                     self._config["trainer"]["DAAC"] = 0.25
+
+        if self._config["sampler"]["buffer_size"] < (self._config["batch_size"] / self._config["n_workers"]) * 1.1:
+            assert(False), "Buffer size might not be large enough to generate a proper batch of specified batch size"
 
     def get_config(self):
         """ 

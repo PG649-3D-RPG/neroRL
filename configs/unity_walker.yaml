@@ -50,6 +50,8 @@ sampler:
   type: "TrajectorySampler"
   n_workers: 8
   worker_steps: 1024
+  buffer_size: 1024 #buffer size should be greater than batchsize/(n_workers*n_agents) 
+  batch_size: 8192
 
 ### TRAINER CONFIG ###
 trainer:

@@ -72,6 +72,7 @@ class BaseTrainer():
         self.dummy_env = wrap_environment(configs["environment"], worker_id)
         self.visual_observation_space = self.dummy_env.visual_observation_space
         self.vector_observation_space = self.dummy_env.vector_observation_space
+        self.n_agents = self.dummy_env.n_agents
         if isinstance(self.dummy_env.action_space, spaces.Discrete):
             self.action_space_shape = (self.dummy_env.action_space.n,)
         elif isinstance(self.dummy_env.action_space, spaces.Box):
@@ -102,7 +103,7 @@ class BaseTrainer():
         # Setup Sampler
         self.monitor.log("Step 4: Launching training environments of type " + configs["environment"]["type"])
         self.sampler = TrajectorySampler(configs, worker_id, self.visual_observation_space, self.vector_observation_space,
-                                        self.action_space_shape, self.model, self.device)
+                                        self.action_space_shape, self.n_agents, self.model, self.device)
 
     def run_training(self):
         """Orchestrates the policy gradient based training:

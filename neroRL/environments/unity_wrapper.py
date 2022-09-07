@@ -270,12 +270,15 @@ class UnityWrapper(Env):
             self.agent_id_map = {}
             for agent_id in np.concatenate(info.agent_id, terminal_info.agent_id):
                 self.agent_id_map[agent_id] = len(self.agent_id_map.items)
-            self._rewards = [ [] for x in self.agent_id_map ]
+            self._rewards = [ [] for _ in self.agent_id_map ]
+            self.n_agents = len(self.agent_id_map.items)
         else:
             #if this case happens, there will most likely be some exceptions / errors due to arrays or lists that do not have the correct length
             for agent_id in np.concatenate(info.agent_id, terminal_info.agent_id):
-                if agent_id in self.agent_id_map:
+                if not agent_id in self.agent_id_map:
                     self.agent_id_map[agent_id] = len(self.agent_id_map.items)
+                    self.n_agents = len(self.agent_id_map.items)
+                    print("A new agent was dynamically detected, this is probably going to break something...")
                     
 
         # Process visual observations

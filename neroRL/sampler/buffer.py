@@ -1,3 +1,4 @@
+from io import BufferedRandom
 import torch
 import numpy as np
 
@@ -5,7 +6,7 @@ class Buffer():
     """
     The buffer stores and prepares the training data. It supports recurrent policies.
     """
-    def __init__(self, num_workers, worker_steps, visual_observation_space, vector_observation_space,
+    def __init__(self, batch_size, buffer_size, num_workers, num_agents, worker_steps, visual_observation_space, vector_observation_space,
                     action_space_shape, recurrence, device, share_parameters, sampler):
         """
         Arguments:
@@ -26,17 +27,20 @@ class Buffer():
         self.sequence_length = recurrence["sequence_length"] if recurrence is not None else None
         self.num_workers = num_workers
         self.worker_steps = worker_steps
-        self.batch_size = self.num_workers * self.worker_steps
-        self.rewards = np.zeros((num_workers, worker_steps), dtype=np.float32)
-        self.actions = torch.zeros((num_workers, worker_steps, action_space_shape[0]))
-        self.std = torch.zeros((num_workers, worker_steps, action_space_shape[0]))
-        self.dones = np.zeros((num_workers, worker_steps), dtype=np.bool)
+        self.num_agents = num_agents
+        # self.batch_size = self.num_workers * self.worker_steps
+        self.batch_size = batch_size
+        self.buffer_size = buffer_size
+        self.rewards = np.zeros((num_workers, num_agents, buffer_size), dtype=np.float32)
+        self.actions = torch.zeros((num_workers, num_agents, buffer_size, action_space_shape[0]))
+        self.std = torch.zeros((num_workers, num_agents, buffer_size, action_space_shape[0]))
+        self.dones = np.zeros((num_workers, num_agents, buffer_size), dtype=np.bool)
         if visual_observation_space is not None:
-            self.vis_obs = torch.zeros((num_workers, worker_steps) + visual_observation_space.shape)
+            self.vis_obs = torch.zeros((num_workers, num_agents, buffer_size) + visual_observation_space.shape)
         else:
             self.vis_obs = None
         if vector_observation_space is not None:
-            self.vec_obs = torch.zeros((num_workers, worker_steps,) + vector_observation_space)
+            self.vec_obs = torch.zeros((num_workers, num_agents, buffer_size,) + vector_observation_space)
         else:
             self.vec_obs = None
         
@@ -47,9 +51,9 @@ class Buffer():
             self.hxs = torch.zeros((num_workers, worker_steps, recurrence["hidden_state_size"], 2)) if recurrence is not None else None
             self.cxs = torch.zeros((num_workers, worker_steps, recurrence["hidden_state_size"], 2)) if recurrence is not None else None
 
-        self.log_probs = torch.zeros((num_workers, worker_steps))
-        self.values = torch.zeros((num_workers, worker_steps))
-        self.advantages = torch.zeros((num_workers, worker_steps))
+        self.log_probs = torch.zeros((num_workers, num_agents, buffer_size))
+        self.values = torch.zeros((num_workers, num_agents, buffer_size))
+        self.advantages = torch.zeros((num_workers, num_agents, buffer_size))
         self.num_sequences = 0
         self.actual_sequence_length = 0
 
