@@ -7,7 +7,8 @@ environment:
   type: "Unity"
   # type: "Unity"
   # Environment Name (Unity environments have to specify the path to the executable)
-  name: "/home/jannik/Documents/Projektgruppe/Executables/Walker_13_07/Walker_13_07"
+  #name: "/home/jannik/Documents/Projektgruppe/Executables/Walker_13_07/Walker_13_07"
+  name: "/home/jannik/Documents/Projektgruppe/Executables/Walker_09_09_MA/Walker_09_09" 
   # name: "./UnityBuilds/ObstacleTowerReduced/ObstacleTower"
   frame_skip: 1
   last_action_to_obs: False
@@ -50,7 +51,7 @@ sampler:
   type: "TrajectorySampler"
   n_workers: 8
   worker_steps: 1024
-  buffer_size: 1024 #buffer size should be greater than batchsize/(n_workers*n_agents) 
+  buffer_size: 1500 #buffer size should be greater than batchsize/(n_workers*n_agents) 
   batch_size: 8192
 
 ### TRAINER CONFIG ###

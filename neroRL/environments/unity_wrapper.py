@@ -111,6 +111,11 @@ class UnityWrapper(Env):
 
         # Declare agent id mapping dictionary
         self.agent_id_map = None
+        self.n_agents = None
+
+        # self.reset()
+
+        # print("Detected Num Agents: " + str(self.n_agents))
 
         # Videos can only be recorded if the environment provides visual observations
         if self._record and self._visual_observation_space is None:
@@ -184,7 +189,7 @@ class UnityWrapper(Env):
         #self._verify_environment()
 
         # make next step (Unity environment will automatically perform internal reset)
-        #self._env.step()
+        # self._env.step()
         info, terminal_info = self._env.get_steps(self._behavior_name) 
         
         # Retrieve initial observations
@@ -217,7 +222,8 @@ class UnityWrapper(Env):
         """
         # Carry ot the agent's action
         action_tuple = ActionTuple()
-        action_tuple.add_continuous(np.asarray(action).reshape([1, -1])) #TODO: reshape so that actions for all agents in multi-agent build are considered
+        #action_tuple.add_continuous(np.asarray(action).reshape([1, -1])) #TODO: reshape so that actions for all agents in multi-agent build are considered
+        action_tuple.add_continuous(action)
         #action_tuple.add_discrete(np.asarray(action).reshape([1, -1]))
         self._env.set_actions(self._behavior_name, action_tuple)
         self._env.step()
@@ -268,10 +274,10 @@ class UnityWrapper(Env):
         # Process agent id map
         if self.agent_id_map is None:
             self.agent_id_map = {}
-            for agent_id in np.concatenate(info.agent_id, terminal_info.agent_id):
-                self.agent_id_map[agent_id] = len(self.agent_id_map.items)
+            for agent_id in np.concatenate((info.agent_id, terminal_info.agent_id)):
+                self.agent_id_map[agent_id] = len(self.agent_id_map.items())
             self._rewards = [ [] for _ in self.agent_id_map ]
-            self.n_agents = len(self.agent_id_map.items)
+            self.n_agents = len(self.agent_id_map.items())
         else:
             #if this case happens, there will most likely be some exceptions / errors due to arrays or lists that do not have the correct length
             for agent_id in np.concatenate(info.agent_id, terminal_info.agent_id):
@@ -284,18 +290,22 @@ class UnityWrapper(Env):
         # Process visual observations
         vis_obs = None
 
+        i_obs = np.vstack(info.obs)
+        ti_obs = np.vstack(terminal_info.obs)
+
         # Process vector observations
-        use_info = np.concatenate(info.obs, terminal_info.obs)
+        #use_info = np.concatenate((info.obs, terminal_info.obs))
+        use_info = np.concatenate((i_obs, ti_obs))
         if self.vector_observation_space is not None:
             for i, dim in enumerate(self._vec_obs_indices):
                 if i == 0:
-                    vec_obs = use_info.obs[dim][:]#[0]
+                    vec_obs = use_info[dim][:]#[0]
                 else:
-                    vec_obs = np.concatenate((vec_obs, use_info.obs[dim][:]))
+                    vec_obs = np.concatenate((vec_obs, use_info[dim][:]))
         else:
             vec_obs = None
 
-        return vis_obs, vec_obs, np.concatenate(info.reward, terminal_info.reward), np.concatenate(info.agent_id, terminal_info.agent_id), len(info.agent_id)
+        return vis_obs, vec_obs, np.concatenate((info.reward, terminal_info.reward)), np.concatenate((info.agent_id, terminal_info.agent_id)), len(info.agent_id)
 
     def _verify_environment(self):
         # Verify number of agent behavior types

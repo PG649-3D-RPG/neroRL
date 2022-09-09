@@ -45,4 +45,5 @@ def wrap_environment(config, worker_id, realtime_mode = False, record_trajectory
     # Stack Observation
     if config["obs_stacks"] > 1:
         env = StackedObservationEnv(env, config["obs_stacks"])
-    return PyTorchEnv(env)
+    #return PyTorchEnv(env)
+    return env

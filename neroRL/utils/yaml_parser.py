@@ -255,8 +255,8 @@ class YamlParser:
                 if "adv_coefficient" not in self._config["trainer"]["DAAC"]:
                     self._config["trainer"]["DAAC"] = 0.25
 
-        if self._config["sampler"]["buffer_size"] < (self._config["batch_size"] / self._config["n_workers"]) * 1.1:
-            assert(False), "Buffer size might not be large enough to generate a proper batch of specified batch size"
+        # if self._config["sampler"]["buffer_size"] < (self._config["sampler"]["batch_size"] / self._config["sampler"]["n_workers"]) * 1.1:
+        #     assert(False), "Buffer size might not be large enough to generate a proper batch of specified batch size" #TODO fix this assertion with a reasonable calculation (including num_agents)
 
     def get_config(self):
         """ 

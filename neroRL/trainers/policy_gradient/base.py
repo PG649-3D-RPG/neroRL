@@ -70,6 +70,7 @@ class BaseTrainer():
         # Create dummy environment to retrieve the shapes of the observation and action space for further processing
         self.monitor.log("Step 2: Creating dummy environment")
         self.dummy_env = wrap_environment(configs["environment"], worker_id)
+        self.dummy_env.reset()
         self.visual_observation_space = self.dummy_env.visual_observation_space
         self.vector_observation_space = self.dummy_env.vector_observation_space
         self.n_agents = self.dummy_env.n_agents
