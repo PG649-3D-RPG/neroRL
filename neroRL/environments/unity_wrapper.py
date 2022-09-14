@@ -51,9 +51,9 @@ class UnityWrapper(Env):
         self._record = record_trajectory
 
         # Launch the environment's executable
-        self._env = UnityEnvironment(file_name = env_path, worker_id = worker_id, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config], timeout_wait=300)
+        # self._env = UnityEnvironment(file_name = env_path, worker_id = worker_id, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config], timeout_wait=300)
         # If the Unity Editor should be used instead of a build
-        # self._env = UnityEnvironment(file_name = None, worker_id = 0, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config])
+        self._env = UnityEnvironment(file_name = None, worker_id = 0, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config])
 
         # Reset the environment
         self._env.reset()
@@ -223,11 +223,12 @@ class UnityWrapper(Env):
         # Carry ot the agent's action
         action_tuple = ActionTuple()
         #action_tuple.add_continuous(np.asarray(action).reshape([1, -1])) #TODO: reshape so that actions for all agents in multi-agent build are considered
-        action_tuple.add_continuous(action)
+        action_tuple.add_continuous(np.asarray(action))
         #action_tuple.add_discrete(np.asarray(action).reshape([1, -1]))
         self._env.set_actions(self._behavior_name, action_tuple)
         self._env.step()
         info, terminal_info = self._env.get_steps(self._behavior_name)
+   
 
         # Process step results
         vis_obs, vec_obs, rewards, agent_ids, actions_next_step = self._process_agent_info(info, terminal_info)
@@ -247,7 +248,7 @@ class UnityWrapper(Env):
         for x in range(actions_next_step, len(agent_ids)):
             done_agent_id = agent_ids[x]
             done_agent_index = self.agent_id_map[done_agent_id]
-            episode_end_info.append(done_agent_id,{"reward": sum(self._rewards[done_agent_index]),
+            episode_end_info.append({"reward": sum(self._rewards[done_agent_index]),
                     "length": len(self._rewards[done_agent_index]),
                     "full_reward": sum(self._rewards[done_agent_index])})
             self._rewards[done_agent_index] = []
@@ -271,16 +272,17 @@ class UnityWrapper(Env):
             reward {float} -- Reward signal from the environment
             done {bool} -- Whether the episode terminated or not
         """
+
         # Process agent id map
         if self.agent_id_map is None:
             self.agent_id_map = {}
-            for agent_id in np.concatenate((info.agent_id, terminal_info.agent_id)):
+            for agent_id in np.unique(np.concatenate((info.agent_id, terminal_info.agent_id))):
                 self.agent_id_map[agent_id] = len(self.agent_id_map.items())
             self._rewards = [ [] for _ in self.agent_id_map ]
             self.n_agents = len(self.agent_id_map.items())
         else:
             #if this case happens, there will most likely be some exceptions / errors due to arrays or lists that do not have the correct length
-            for agent_id in np.concatenate(info.agent_id, terminal_info.agent_id):
+            for agent_id in np.unique(np.concatenate((info.agent_id, terminal_info.agent_id))):
                 if not agent_id in self.agent_id_map:
                     self.agent_id_map[agent_id] = len(self.agent_id_map.items)
                     self.n_agents = len(self.agent_id_map.items)
@@ -293,19 +295,9 @@ class UnityWrapper(Env):
         i_obs = np.vstack(info.obs)
         ti_obs = np.vstack(terminal_info.obs)
 
-        # Process vector observations
-        #use_info = np.concatenate((info.obs, terminal_info.obs))
-        use_info = np.concatenate((i_obs, ti_obs))
-        if self.vector_observation_space is not None:
-            for i, dim in enumerate(self._vec_obs_indices):
-                if i == 0:
-                    vec_obs = use_info[dim][:]#[0]
-                else:
-                    vec_obs = np.concatenate((vec_obs, use_info[dim][:]))
-        else:
-            vec_obs = None
 
-        return vis_obs, vec_obs, np.concatenate((info.reward, terminal_info.reward)), np.concatenate((info.agent_id, terminal_info.agent_id)), len(info.agent_id)
+        #return vis_obs, vec_obs, np.concatenate((info.reward, terminal_info.reward)), np.concatenate((info.agent_id, terminal_info.agent_id)), len(info.agent_id)
+        return vis_obs, np.concatenate((i_obs, ti_obs)), np.concatenate((info.reward, terminal_info.reward)), np.concatenate((info.agent_id, terminal_info.agent_id)), len(info.agent_id)
 
     def _verify_environment(self):
         # Verify number of agent behavior types

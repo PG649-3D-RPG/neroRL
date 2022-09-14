@@ -76,7 +76,7 @@ class Buffer():
             for t in reversed(range(self.buffer_size)):
                 last_value = last_value * mask[:, :, t]
                 last_advantage = last_advantage * mask[:, :, t]
-                delta = rewards[:, t] + gamma * last_value - self.values[:, :, t]
+                delta = rewards[:, :, t] + gamma * last_value - self.values[:, :, t]
                 last_advantage = delta + gamma * lamda * last_advantage
                 self.advantages[: , :, t] = last_advantage
                 last_value = self.values[:, :, t]
@@ -89,29 +89,34 @@ class Buffer():
         """
         # Supply training samples
         samples = {
-            "actions": torch.zeros((self.batch_size,self.action_space_shape)),
+            "actions": torch.zeros((self.batch_size,)+self.action_space_shape),
             "values": torch.zeros((self.batch_size,)),
             "log_probs": torch.zeros((self.batch_size,)),
             "advantages": torch.zeros((self.batch_size,)),
+            "loss_mask": torch.ones((self.batch_size,))
         }
 
     	# Add available observations to the dictionary
         if self.vis_obs is not None:
             samples["vis_obs"] = self.vis_obs
         if self.vec_obs is not None:
-            samples["vec_obs"] = torch.zeros((self.batch_size,self.vector_observation_space))
+            samples["vec_obs"] = torch.zeros((self.batch_size,)+self.vector_observation_space)
       
         filled_indices = 0
         for w in range(self.num_workers):
             for a in range(self.num_agents):
                 if filled_indices + self.last_filled_indices[w,a] >= self.batch_size:
                     self.last_filled_indices[w,a] = self.batch_size - filled_indices
+                #print("filled indices " + str(filled_indices) + "last filled indices of current worker " + str(w) + " of current agent " + str(a) + " are " + str(self.last_filled_indices[w,a]))
                 samples["actions"][filled_indices : filled_indices + self.last_filled_indices[w,a]] = self.actions[w,a, : self.last_filled_indices[w,a]]
-                samples["values"][filled_indices : self.last_filled_indices[w,a]] = self.values[w,a, : self.last_filled_indices[w,a]]
-                samples["log_probs"][filled_indices : self.last_filled_indices[w,a]] = self.log_probs[w,a, : self.last_filled_indices[w,a]]
-                samples["advantages"][filled_indices : self.last_filled_indices[w,a]] = self.advantages[w,a, : self.last_filled_indices[w,a]]
-                samples["vec_obs"][filled_indices : self.last_filled_indices[w,a]] = self.vec_obs[w,a, : self.last_filled_indices[w,a]]
+                samples["values"][filled_indices : filled_indices + self.last_filled_indices[w,a]] = self.values[w,a, : self.last_filled_indices[w,a]]
+                samples["log_probs"][filled_indices : filled_indices + self.last_filled_indices[w,a]] = self.log_probs[w,a, : self.last_filled_indices[w,a]]
+                samples["advantages"][filled_indices : filled_indices + self.last_filled_indices[w,a]] = self.advantages[w,a, : self.last_filled_indices[w,a]]
+                samples["vec_obs"][filled_indices : filled_indices + self.last_filled_indices[w,a]] = self.vec_obs[w,a, : self.last_filled_indices[w,a]]
                 filled_indices += self.last_filled_indices[w,a]
+
+
+        self.samples_flat = samples
 
     def mini_batch_generator(self, num_mini_batches):
         """A generator that returns a dictionary containing the data of a whole minibatch.
