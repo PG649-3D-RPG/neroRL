@@ -17,7 +17,7 @@ class UnityWrapper(Env):
         - Only one visual observation
         - Only discrete and multi-discrete action spaces (no continuous action space)"""
 
-    def __init__(self, env_path, reset_params, worker_id = 1, no_graphis = False, realtime_mode = False,  record_trajectory = False):
+    def __init__(self, env_path, reset_params, worker_id = 1, no_graphis = True, realtime_mode = False,  record_trajectory = False):
         """Instantiates the Unity Environment from a specified executable.
         
         Arguments:
@@ -51,9 +51,9 @@ class UnityWrapper(Env):
         self._record = record_trajectory
 
         # Launch the environment's executable
-        # self._env = UnityEnvironment(file_name = env_path, worker_id = worker_id, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config], timeout_wait=300)
+        self._env = UnityEnvironment(file_name = env_path, worker_id = worker_id, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config], timeout_wait=300)
         # If the Unity Editor should be used instead of a build
-        self._env = UnityEnvironment(file_name = None, worker_id = 0, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config])
+        # self._env = UnityEnvironment(file_name = None, worker_id = 0, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config])
 
         # Reset the environment
         self._env.reset()

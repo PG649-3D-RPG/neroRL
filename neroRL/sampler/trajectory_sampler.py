@@ -142,12 +142,12 @@ class TrajectorySampler():
                 #Might calculate log_props for unused actions
                 log_probs = policy.log_prob(action).sum(2) #log probs has shape 8,39 for a 8x10 agent config with axis 1
 
-
+                action_np = action.cpu().numpy()
                 pass_actions = [np.zeros((len(self.actions_next_step[x]),)+(self.action_space_shape)) for x in range(self.n_workers)]
  
                 for w in range(self.n_workers):
                     for j,a in enumerate(self.actions_next_step[w]):
-                        pass_actions[w][j] = action[w, self.agent_id_map[w][a]]
+                        pass_actions[w][j] = action_np[w, self.agent_id_map[w][a]]
                         
                         self.buffer.actions[w,self.agent_id_map[w][a], self.next_step_indices[w,self.agent_id_map[w][a]]] = action[w,self.agent_id_map[w][a],:]
 
@@ -209,7 +209,7 @@ class TrajectorySampler():
             past_vec_obs = np.zeros_like(self.vec_obs)
             for w in range(self.n_workers):
                 for a in range(self.n_agents):
-                    past_vec_obs[w,a] = self.buffer.vec_obs[w,a, self.next_step_indices[w,a]-1]
+                    past_vec_obs[w,a] = self.buffer.vec_obs.cpu().numpy()[w,a, self.next_step_indices[w,a]-1]
             return torch.tensor(past_vec_obs) 
             
         return None
