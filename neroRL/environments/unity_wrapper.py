@@ -34,6 +34,7 @@ class UnityWrapper(Env):
         self.reset_parameters = EnvironmentParametersChannel()
         self.engine_config = EngineConfigurationChannel()
 
+
         # Prepare default reset parameters
         self._default_reset_parameters = {}
         for key, value in reset_params.items():

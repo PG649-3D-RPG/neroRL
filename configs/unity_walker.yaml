@@ -7,8 +7,9 @@ environment:
   type: "Unity"
   # type: "Unity"
   # Environment Name (Unity environments have to specify the path to the executable)
-  #name: "/home/jannik/Documents/Projektgruppe/Executables/Walker_13_07/Walker_13_07"
-  name: "/home/jannik/Documents/Projektgruppe/Executables/Walker_09_09_MA/Walker_09_09" 
+  # name: "/home/jannik/Documents/Projektgruppe/Executables/Walker_13_07/Walker_13_07"
+  # name: "/home/jannik/Documents/Projektgruppe/Executables/Walker_09_09_MA/Walker_09_09"
+  name: "/home/jannik/Documents/Projektgruppe/Executables/Walker_20_09_10A_CamOver/Walker_20_09_10A_CamOver" 
   # name: "./UnityBuilds/ObstacleTowerReduced/ObstacleTower"
   frame_skip: 1
   last_action_to_obs: False
@@ -24,8 +25,8 @@ environment:
 
 ### MODEL CONFIG ###
 model:
-  load_model: False
-  model_path: "/home/jannik/InstallGits/neroRL/checkpoints/UnityWalkerUnityUnsharedNormalizeLearnedStd8x1024/20220728-170655_6500/UnityWalkerUnityUnsharedNormalizeLearnedStd8x1024-2529.pt"
+  load_model: True
+  model_path: "/home/jannik/InstallGits/neroRL/checkpoints/MultiAgentBuildTest/20220914-172707_2/MultiAgentBuildTest-1055.pt"
   checkpoint_interval: 50
   activation: "tanh"
   vis_encoder: "cnn"
@@ -49,10 +50,10 @@ evaluation:
 ### SAMPLER CONFIG
 sampler:
   type: "TrajectorySampler"
-  n_workers: 4
+  n_workers: 2
   worker_steps: 1024
-  buffer_size: 1500 #buffer size should be greater than batchsize/(n_workers*n_agents) 
-  batch_size: 8192
+  buffer_size: 15000 #buffer size should be greater than batchsize/(n_workers*n_agents) 
+  batch_size: 16384
 
 ### TRAINER CONFIG ###
 trainer:

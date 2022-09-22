@@ -117,8 +117,8 @@ class TrajectorySampler():
                 if self.vis_obs is not None:
                     self.buffer.vis_obs[:, t] = torch.tensor(self.vis_obs)
                 if self.vec_obs is not None:
-                    for w in range(0, self.vec_obs.shape[0]):
-                        for a in range(0, self.vec_obs.shape[1]):
+                    for w in range(0, self.n_workers):
+                        for a in range(0, self.n_agents):
                             if np.any(self.vec_obs[w,a,:]): 
                                 self.buffer.vec_obs[w,a, self.next_step_indices[w,a]] = torch.tensor(self.vec_obs[w,a,:])
 
@@ -127,6 +127,7 @@ class TrajectorySampler():
                 vis_obs_batch = torch.tensor(self.vis_obs) if self.vis_obs is not None else None
                 vec_obs_batch = torch.tensor(self.vec_obs) if self.vec_obs is not None else None
                 policy, value, self.recurrent_cell, _ = self.model(vis_obs_batch, vec_obs_batch, self.recurrent_cell)
+
 
                 for w in range(self.n_workers):
                     for agent_id_with_action in self.actions_next_step[w]:
@@ -152,18 +153,17 @@ class TrajectorySampler():
                         self.buffer.actions[w,self.agent_id_map[w][a], self.next_step_indices[w,self.agent_id_map[w][a]]] = action[w,self.agent_id_map[w][a],:]
 
                         self.buffer.log_probs[w, self.agent_id_map[w][a], self.next_step_indices[w, self.agent_id_map[w][a]]] = log_probs[w, self.agent_id_map[w][a]]
-                            
+
             # Execute actions
             for w, worker in enumerate(self.workers):
                 worker.child.send(("step", pass_actions[w]))
 
+            self.vec_obs = np.zeros_like(self.vec_obs)
             # Retrieve results
             for w, worker in enumerate(self.workers):
-                vis_obs, vec_obs, rewards, agent_ids, actions_next_step, episode_end_info = worker.child.recv()
+                vis_obs, vec_obs, rewards, agent_ids, actions_next_step, episode_end_info = worker.child.recv()            
 
                 self.actions_next_step[w] = list(agent_ids[:actions_next_step])
-
-                self.vec_obs = np.zeros_like(self.vec_obs)
 
                 for x in reversed(range(0, len(agent_ids))):
                     agent_id = agent_ids[x]
