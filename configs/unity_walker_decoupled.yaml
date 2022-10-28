@@ -51,25 +51,42 @@ evaluation:
 ### SAMPLER CONFIG
 sampler:
   type: "TrajectorySampler"
-  n_workers: 2
+  n_workers: 4
   worker_steps: 1024
-  buffer_size: 15000 #buffer size should be greater than batchsize/(n_workers*n_agents) 
-  batch_size: 16384
+  buffer_size: 1200 #buffer size should be greater than batchsize/(n_workers*n_agents) 
+  batch_size: 32768
 
 ### TRAINER CONFIG ###
 trainer:
-  algorithm: "PPO"
+  algorithm: "DecoupledPPO"
   resume_at: 0
   gamma: 0.995
   lamda: 0.95
   updates: 10000
   epochs: 3
+  policy_epochs: 3
+  value_epochs: 3
   refresh_buffer_epoch: -1
   n_mini_batches: 4
+  n_policy_mini_batches: 4
+  n_value_mini_batches: 4
   value_coefficient: 0.5
   max_grad_norm: 0.5
+  max_policy_grad_norm: 0.5
+  max_value_grad_norm: 0.5
+  run_threaded: True
   share_parameters: True
   learning_rate_schedule:
+    initial: 3.0e-4
+    final: 0
+    power: 1.0
+    max_decay_steps: 10000
+  policy_learning_rate_schedule:
+    initial: 3.0e-4
+    final: 0
+    power: 1.0
+    max_decay_steps: 10000
+  value_learning_rate_schedule:
     initial: 3.0e-4
     final: 0
     power: 1.0
@@ -80,6 +97,16 @@ trainer:
     power: 1.0
     max_decay_steps: 800
   clip_range_schedule:
+    initial: 0.2
+    final: 0.2
+    power: 1.0
+    max_decay_steps: 1000
+  policy_clip_range_schedule:
+    initial: 0.2
+    final: 0.2
+    power: 1.0
+    max_decay_steps: 1000
+  value_clip_range_schedule:
     initial: 0.2
     final: 0.2
     power: 1.0

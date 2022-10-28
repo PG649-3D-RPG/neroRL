@@ -172,7 +172,7 @@ class TrajectorySampler():
                     if vec_obs[x].shape is (): # after the initial reset, the get_steps method of the environments return terminal steps with empty observations (shape () ). These are ignored using this if statement
                         continue
 
-                    self.vec_obs[w, agent_index] = self.observationNormalizer.forward(vec_obs[x])
+                    self.vec_obs[w, agent_index] = self.observationNormalizer.forward(vec_obs[x]) if self.observationNormalizer is not None else vec_obs[x]
                     self.buffer.rewards[w, agent_index, self.next_step_indices[w, agent_index]] = rewards[x]
 
                     if x >= actions_next_step:

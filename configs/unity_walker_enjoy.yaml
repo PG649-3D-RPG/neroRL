@@ -10,7 +10,8 @@ environment:
   # name: "/home/jannik/Documents/Projektgruppe/Executables/Walker_13_07/Walker_13_07"
   # name: "/home/jannik/Documents/Projektgruppe/Executables/Walker_09_09_MA/Walker_09_09"
   # name: "/home/jannik/Documents/Projektgruppe/Executables/Walker_20_09_10A_CamOver/Walker_20_09_10A_CamOver" 
-  name: "/home/jannik/Documents/Projektgruppe/LiDo/build_MA8/Walker_20_09_8A/Walker_20_09_8A"
+  # name: "/home/jannik/Documents/Projektgruppe/LiDo/build_MA8/Walker_20_09_8A/Walker_20_09_8A"
+  name: "/home/jannik/Documents/Projektgruppe/LiDo/Walker_Exec_16A/Walker_Exec_16A"
   # name: "./UnityBuilds/ObstacleTowerReduced/ObstacleTower"
   frame_skip: 1
   last_action_to_obs: False
@@ -26,8 +27,8 @@ environment:
 
 ### MODEL CONFIG ###
 model:
-  load_model: False
-  model_path: "/home/jannik/InstallGits/neroRL/checkpoints/MultiAgentBuildTest/20220914-172707_2/MultiAgentBuildTest-1055.pt"
+  load_model: True
+  model_path: "/home/jannik/Documents/Projektgruppe/LiDo/checkpoints/UnityWalker8w16aEntMB_/20221021-163821_6720/UnityWalker8w16aEntMB_-9999.pt"
   checkpoint_interval: 50
   activation: "tanh"
   vis_encoder: "cnn"
@@ -39,7 +40,7 @@ model:
   num_hidden_pre_head: 512
   tanh_squashing: False
   normalize_observations: True
-  share_parameters: False
+  share_parameters: True
 
 ### EVALUATION CONFIG ###
 evaluation:
@@ -51,10 +52,9 @@ evaluation:
 ### SAMPLER CONFIG
 sampler:
   type: "TrajectorySampler"
-  n_workers: 2
-  worker_steps: 1024
-  buffer_size: 15000 #buffer size should be greater than batchsize/(n_workers*n_agents) 
-  batch_size: 16384
+  n_workers: 1
+  buffer_size: 5000 #buffer size should be greater than batchsize/(n_workers*n_agents) 
+  batch_size: 65536
 
 ### TRAINER CONFIG ###
 trainer:

@@ -148,7 +148,10 @@ class PPOTrainer(BaseTrainer):
 
 
         # Entropy Bonus
-        entropy_bonus = masked_mean(policy.entropy().sum(1), samples["loss_mask"])
+        #print("Policy entrop shape " + str(policy.entropy().shape))
+        #print("Policy shape " + str(type(policy)))
+        entropy_bonus = masked_mean(policy.entropy().mean(1), samples["loss_mask"]) #changed entropy calculation from sum(1) to mean(1) -> mean over all actions
+        #print("entropy bonus shape " + str(policy.entropy().sum(1).shape))
         # if squashing is used, then do not use entropy
         if self.tanhsquash:
             entropy_bonus = torch.zeros(entropy_bonus.size()) #use this if entropy should always be zero

@@ -62,8 +62,8 @@ class DecoupledPPOTrainer(BaseTrainer):
         self.value_parameters = self.model.get_critic_params()
 
         # Instantiate optimizer
-        self.policy_optimizer = optim.AdamW(self.policy_parameters, lr=self.policy_learning_rate)
-        self.value_optimizer = optim.AdamW(self.value_parameters, lr=self.value_learning_rate)
+        self.policy_optimizer = optim.AdamW(self.policy_parameters, lr=self.policy_learning_rate, eps=1e-5)
+        self.value_optimizer = optim.AdamW(self.value_parameters, lr=self.value_learning_rate, eps=1e-5)
 
     def create_model(self):
         model =  create_actor_critic_model(self.configs["model"], False,
@@ -164,28 +164,21 @@ class DecoupledPPOTrainer(BaseTrainer):
                                     samples["actions"])
 
         # Policy Loss
-        # Retrieve and process log_probs from each policy branch
-        log_probs = []
-        for i, policy_branch in enumerate(policy):
-            log_probs.append(policy_branch.log_prob(samples["actions"][:, i]))
-        log_probs = torch.stack(log_probs, dim=1)
+        log_probs = policy.log_prob(samples["actions"]).sum(1)
 
         # Compute surrogates
         normalized_advantage = (samples["advantages"] - samples["advantages"].mean()) / (samples["advantages"].std() + 1e-8)
         # Repeat is necessary for multi-discrete action spaces
-        advs = normalized_advantage.unsqueeze(1).repeat(1, len(self.action_space_shape))
+        #advs = normalized_advantage.unsqueeze(1).repeat(1, len(self.action_space_shape))
         log_ratio = log_probs - samples["log_probs"]
         ratio = torch.exp(log_ratio)
-        surr1 = ratio * advs
-        surr2 = torch.clamp(ratio, 1.0 - self.policy_clip_range, 1.0 + self.policy_clip_range) * advs
+        surr1 = ratio * normalized_advantage
+        surr2 = torch.clamp(ratio, 1.0 - self.policy_clip_range, 1.0 + self.policy_clip_range) * normalized_advantage
         policy_loss = torch.min(surr1, surr2)
         policy_loss = masked_mean(policy_loss, samples["loss_mask"])
 
         # Entropy Bonus
-        entropies = []
-        for policy_branch in policy:
-            entropies.append(policy_branch.entropy())
-        entropy_bonus = masked_mean(torch.stack(entropies, dim=1).sum(1).reshape(-1), samples["loss_mask"])
+        entropy_bonus = masked_mean(policy.entropy().mean(1), samples["loss_mask"]) #changed entropy calculation from sum(1) to mean(1) -> mean over all actions
 
         # Advantage estimation as part of the DAAC algorithm (Raileanu & Fergus, 2021)
         if self.use_daac:
@@ -245,8 +238,14 @@ class DecoupledPPOTrainer(BaseTrainer):
         sampled_return = samples["values"] + samples["advantages"]
         clipped_value = samples["values"] + (value - samples["values"]).clamp(min=-self.value_clip_range, max=self.value_clip_range)
         vf_loss = torch.max((value - sampled_return) ** 2, (clipped_value - sampled_return) ** 2)
+        print("vf loss type 1 " + str(type(vf_loss)))
+        print("vf loss shape 1 " + str(vf_loss.shape))
         vf_loss = masked_mean(vf_loss, samples["loss_mask"])
+        vf_loss = 0.5 * vf_loss #added this corresponding to cleanRL ppo_continuous_action.py line 300/302 (this essentially sets the vf_coefficient to 0.5*0.5=0.25 which was the original value in the config)
 
+        print("vf loss type " + str(type(vf_loss)))
+        print("vf loss shape " + str(vf_loss.shape))
+        
         # Compute gradients
         self.value_optimizer.zero_grad()
         vf_loss.backward()
