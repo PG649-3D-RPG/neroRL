@@ -238,13 +238,8 @@ class DecoupledPPOTrainer(BaseTrainer):
         sampled_return = samples["values"] + samples["advantages"]
         clipped_value = samples["values"] + (value - samples["values"]).clamp(min=-self.value_clip_range, max=self.value_clip_range)
         vf_loss = torch.max((value - sampled_return) ** 2, (clipped_value - sampled_return) ** 2)
-        print("vf loss type 1 " + str(type(vf_loss)))
-        print("vf loss shape 1 " + str(vf_loss.shape))
         vf_loss = masked_mean(vf_loss, samples["loss_mask"])
         vf_loss = 0.5 * vf_loss #added this corresponding to cleanRL ppo_continuous_action.py line 300/302 (this essentially sets the vf_coefficient to 0.5*0.5=0.25 which was the original value in the config)
-
-        print("vf loss type " + str(type(vf_loss)))
-        print("vf loss shape " + str(vf_loss.shape))
         
         # Compute gradients
         self.value_optimizer.zero_grad()
