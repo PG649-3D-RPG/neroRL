@@ -31,9 +31,10 @@ class ActorCriticBase(Module):
         self.mean_cxs = np.zeros(self.recurrence["hidden_state_size"], dtype=np.float32) if recurrence is not None else None
 
         # Set activation function
-        self.activ_fn = self.get_activation_function(config)
+        self.value_activ_fn = self.get_activation_function(config["value_activation"])
+        self.policy_activ_fn = self.get_activation_function(config["policy_activation"])
 
-    def create_base_model(self, config, vis_obs_space, vec_obs_shape):
+    def create_base_model(self, config, vis_obs_space, vec_obs_shape, activ_fn):
         """
         Creates and returns the components of a base model, which consists of:
             - a visual encoder,
@@ -72,18 +73,12 @@ class ActorCriticBase(Module):
             # Case: only vector observation is available
             # Vector observation encoder
             out_features = config["num_vec_encoder_units"] if config["vec_encoder"] != "none" else vec_obs_shape[0]
-            vec_encoder = self.create_vec_encoder(config, vec_obs_shape[0], out_features)
-            in_features_next_layer = out_features
-
-        # Recurrent layer (GRU or LSTM)
-        if self.recurrence is not None:
-            out_features = self.recurrence["hidden_state_size"]
-            recurrent_layer = self.create_recurrent_layer(self.recurrence, in_features_next_layer, out_features)
+            vec_encoder = self.create_vec_encoder(config, vec_obs_shape[0], out_features, activ_fn)
             in_features_next_layer = out_features
         
         # Network body
         out_features = config["num_hidden_units"]
-        body = self.create_body(config, in_features_next_layer, out_features)
+        body = self.create_body(config, in_features_next_layer, out_features, activ_fn)
 
         return vis_encoder, vec_encoder, recurrent_layer, body
 
@@ -135,7 +130,7 @@ class ActorCriticBase(Module):
         self.mean_hxs = mean_hxs
         self.mean_cxs = mean_cxs
 
-    def get_activation_function(self, config):
+    def get_activation_function(self, activation_string):
         """Returns the chosen activation function based on the model config.
 
         Arguments:
@@ -144,33 +139,18 @@ class ActorCriticBase(Module):
         Returns:
             {torch.nn.modules.activation} -- Activation function
         """
-        if config["activation"] == "elu":
+        if activation_string == "elu":
             return nn.ELU()
-        elif config["activation"] == "leaky_relu":
+        elif activation_string == "leaky_relu":
             return nn.LeakyReLU()
-        elif config["activation"] == "relu":
+        elif activation_string == "relu":
             return nn.ReLU()
-        elif config["activation"] == "swish":
+        elif activation_string == "swish":
             return nn.SiLU()
-        elif config["activation"] == 'tanh': #added tanh activation function
+        elif activation_string == 'tanh': #added tanh activation function
             return nn.Tanh()
 
-    def create_vis_encoder(self, config, vis_obs_space):
-        """Creates and returns a new instance of the visual encoder based on the model config.
-
-        Arguments:
-            config {dict} -- Model config
-            vis_obs_space {box} -- Dimensions of the visual observation space
-
-        Returns:
-            {Module} -- The created visual encoder
-        """
-        if config["vis_encoder"] == "cnn":
-            return CNNEncoder(vis_obs_space, config, self.activ_fn)
-        elif config["vis_encoder"] == "rescnn":
-            return ResCNN(vis_obs_space, config, self.activ_fn)
-
-    def create_vec_encoder(self, config, in_features, out_features):
+    def create_vec_encoder(self, config, in_features, out_features, activ_fn):
         """Creates and returns a new instance of the vector encoder based on the model config.
 
         Arguments:
@@ -182,11 +162,11 @@ class ActorCriticBase(Module):
             {Module} -- The created vector encoder
         """
         if config["vec_encoder"] == "linear":
-            return LinVecEncoder(in_features, out_features, self.activ_fn)
+            return LinVecEncoder(in_features, out_features, activ_fn)
         elif config["vec_encoder"] == "none":
             return Sequential()
 
-    def create_body(self, config, in_features, out_features):
+    def create_body(self, config, in_features, out_features, activ_fn):
         """Creates and returns a new instance of the model body based on the model config.
 
         Arguments:
@@ -199,37 +179,4 @@ class ActorCriticBase(Module):
         """
         self.out_features_body = out_features
         if config["hidden_layer"] == "default":
-            return HiddenLayer(self.activ_fn, config["num_hidden_layers"], in_features, out_features)
-    
-    def create_recurrent_layer(self, recurrence, input_shape, hidden_state_size):
-        """Creates and returns a new instance of the recurrent layer based on the recurrence config.
-
-        Arguments:
-            recurrence {dict} -- Recurrence config
-            input_shape {int} -- Size of input
-            hidden_state_size {int} -- Size of the hidden state
-
-        Returns:
-            {Module} -- The created recurrent layer
-        """
-        if recurrence["layer_type"] == "gru":
-            if recurrence["residual"]:
-                return ResGRU(input_shape, hidden_state_size)
-            return GRU(input_shape, hidden_state_size)
-        elif recurrence["layer_type"] == "lstm":
-            if recurrence["residual"]:
-                return ResLSTM(input_shape, hidden_state_size)
-            return LSTM(input_shape, hidden_state_size)
-
-    def get_vis_enc_output(self, vis_encoder, shape):
-        """Computes the output size of the visual encoder by feeding a dummy tensor.
-
-        Arguments:
-            encoder{torch.nn.Module} -- The to be used encoder
-            shape {tuple} -- Input shape of the data feeding to the encoder
-
-        Returns:
-            {int} -- Number of output features returned by the utilized convolutional layers
-        """
-        o = vis_encoder(torch.zeros(1, *shape))
-        return int(np.prod(o.size()))
+            return HiddenLayer(activ_fn, config["num_hidden_layers"], in_features, out_features)
