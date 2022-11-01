@@ -14,6 +14,7 @@ from neroRL.evaluator import Evaluator
 from neroRL.utils.monitor import Monitor
 from neroRL.utils.monitor import Tag
 from neroRL.utils.utils import set_library_seeds
+from neroRL.utils.onnx import ActorExporter, onnx_export, OnnxExporter
 
 class BaseTrainer():
     """The BaseTrainer is in charge of setting up the whole training loop of a policy gradient based algorithm."""
@@ -120,6 +121,13 @@ class BaseTrainer():
         # Load checkpoint and apply data
         if self.configs["model"]["load_model"]:
             self._load_checkpoint()
+
+        #test exporting model to onnx
+        export_model = ActorExporter(self.model.actor_vec_encoder, self.model.actor_body, self.model.actor_policy, self.sampler.observationNormalizer)
+        #onnx_export(export_model, self.vector_observation_space[0], "./checkpoints/test.onnx")
+        exporter = OnnxExporter(export_model, self.vector_observation_space)
+        exporter.export_onnx("./checkpoints/test.onnx")
+
 
         if(self.resume_at > 0):
             self.monitor.log("Step 5: Resuming training at step " + str(self.resume_at) + " using " + str(self.device) + " . . .")
