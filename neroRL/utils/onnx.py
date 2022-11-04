@@ -117,7 +117,7 @@ class ActorExporter(Module):
 
         normalized_state = torch.clip(
             (vec_obs - self.normalization_mean)
-            / np.sqrt(self.normalization_variance / self.normalization_steps),
+            / torch.sqrt(self.normalization_variance / self.normalization_steps),
             -5,
             5,
         )
