@@ -55,18 +55,16 @@ class OnnxExporter: #modelled after mlagents/trainers/torch/model_serialization.
 
         self.dummy_input = (dummy_obs)
 
-        self.input_names = ["VectorInput"]
-
-        self.output_names = ['Actions']
+        self.input_names = ["obs_0"]
 
         self.dynamic_axes = {name: {0: "batch"} for name in self.input_names}
 
-        # self.output_names = [TensorNames.version_number, TensorNames.memory_size]
-        # self.output_names += [
-        #     TensorNames.continuous_action_output,
-        #     TensorNames.continuous_action_output_shape,
-        #     TensorNames.deterministic_continuous_action_output,
-        # ]
+        self.output_names = [TensorNames.version_number, TensorNames.memory_size]
+        self.output_names += [
+            TensorNames.continuous_action_output,
+            TensorNames.continuous_action_output_shape,
+            TensorNames.deterministic_continuous_action_output,
+        ]
         self.dynamic_axes.update(
             {TensorNames.continuous_action_output: {0: "batch"}}
         )
@@ -83,7 +81,6 @@ class OnnxExporter: #modelled after mlagents/trainers/torch/model_serialization.
         return shape
 
     def export_onnx(self, path):
-        print("Exporting onnx")
         torch.onnx.export(
             self.actor,
             self.dummy_input,
@@ -93,28 +90,12 @@ class OnnxExporter: #modelled after mlagents/trainers/torch/model_serialization.
             output_names=self.output_names,
             #dynamic_axes=self.dynamic_axes
         )
-        print("Exported to onnx")
 
 
-def onnx_export(model, input_size, path):
-    model.eval()
-    dummy_input = torch.randn(1, input_size, requires_grad=True) 
-    print("Trying to export onnx")
-    torch.onnx.export(
-        model,
-        dummy_input,
-        path,
-        export_params=True,
-        opset_version=11,
-        do_constant_folding=True,
-        input_names = ['VectorInput'],
-        output_names = ['Actions'],
-        verbose = True
-    )
-    print("Finished exporting onnx")
 
 
 class ActorExporter(Module):
+    MODEL_EXPORT_VERSION = 3
 
     def __init__(self, vec_encoder, body, head, normalizer):
         super().__init__()
@@ -124,6 +105,13 @@ class ActorExporter(Module):
         self.normalization_mean = torch.tensor(normalizer.running_mean)
         self.normalization_variance = torch.tensor(normalizer.running_variance)
         self.normalization_steps = torch.tensor(normalizer.normalization_steps)
+
+        self.version_number = torch.nn.Parameter(
+            torch.Tensor([self.MODEL_EXPORT_VERSION]), requires_grad=False
+        )
+        self.memory_size_vector = torch.nn.Parameter(
+            torch.Tensor([0]), requires_grad=False
+        )
 
     def forward(self, vec_obs):
 
@@ -139,5 +127,6 @@ class ActorExporter(Module):
         h1 = self.vec_encoder(normalized_state.float())
         h2 = self.body(h1)
         policy = self.head(h2)
-        return policy.sample()
+        return (self.version_number, self.memory_size_vector, policy.sample(), policy.mean.shape[1], policy.mean )
+        
 

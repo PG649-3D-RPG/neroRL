@@ -212,9 +212,12 @@ class PPOTrainer(BaseTrainer):
         checkpoint_data = super().collect_checkpoint_data(update)
         checkpoint_data["model"] = self.model.state_dict()
         checkpoint_data["optimizer"] = self.optimizer.state_dict()
+        checkpoint_data["normalizer"] = self.sampler.observationNormalizer.get_data()
         return checkpoint_data
 
     def apply_checkpoint_data(self, checkpoint):
         super().apply_checkpoint_data(checkpoint)
         self.model.load_state_dict(checkpoint["model"])
         self.optimizer.load_state_dict(checkpoint["optimizer"])
+        if "normalizer" in checkpoint.keys():
+            self.sampler.observationNormalizer.set_data(checkpoint["normalizer"])

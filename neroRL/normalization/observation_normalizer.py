@@ -41,7 +41,6 @@ class TensorNormalizer(nn.Module):
 
 class NdNormalizer:
     def __init__(self, vec_obs_size: int):
-        super().__init__()
         self.normalization_steps = np.array(1)
         self.running_mean = np.zeros(vec_obs_size)
         self.running_variance = np.ones(vec_obs_size)
@@ -73,3 +72,9 @@ class NdNormalizer:
         self.running_mean = new_mean
         self.running_variance = new_variance
         self.normalization_steps = total_new_steps
+
+    def get_data(self):
+        return (self.running_mean, self.running_variance, self.normalization_steps)
+
+    def set_data(self, data):
+        self.running_mean, self.running_variance, self.normalization_steps = data

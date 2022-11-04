@@ -26,10 +26,13 @@ environment:
 
 ### MODEL CONFIG ###
 model:
-  load_model: False
-  model_path: "/home/jannik/InstallGits/neroRL/checkpoints/MultiAgentBuildTest/20220914-172707_2/MultiAgentBuildTest-1055.pt"
+  load_model: True
+  #model_path: "/home/jannik/InstallGits/neroRL/checkpoints/MultiAgentBuildTest/20220914-172707_2/MultiAgentBuildTest-1055.pt"
+  # model_path: "/home/jannik/Documents/Projektgruppe/LiDo/checkpoints/UnityWalker8w16aEntMBsplit_/UnityWalker8w16aEntMBsplit_-9999.pt" 
+  # model_path: "/home/jannik/InstallGits/neroRL/checkpoints/OnnxExportEndTest/20221104-131619_7700/OnnxExportEndTest-2.pt"
+  model_path: "/home/jannik/InstallGits/neroRL/checkpoints/OnnxExportEndTest/20221104-131920_7700/OnnxExportEndTest-6.pt"
   checkpoint_interval: 50
-  policy_activation: "swish"
+  policy_activation: "tanh"
   value_activation: "tanh"
   vis_encoder: "cnn"
   vec_encoder: "linear" # "linear", "none"

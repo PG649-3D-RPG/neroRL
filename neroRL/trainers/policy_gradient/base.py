@@ -14,7 +14,7 @@ from neroRL.evaluator import Evaluator
 from neroRL.utils.monitor import Monitor
 from neroRL.utils.monitor import Tag
 from neroRL.utils.utils import set_library_seeds
-from neroRL.utils.onnx import ActorExporter, onnx_export, OnnxExporter
+from neroRL.utils.onnx import ActorExporter, OnnxExporter
 
 class BaseTrainer():
     """The BaseTrainer is in charge of setting up the whole training loop of a policy gradient based algorithm."""
@@ -122,11 +122,7 @@ class BaseTrainer():
         if self.configs["model"]["load_model"]:
             self._load_checkpoint()
 
-        #test exporting model to onnx
-        export_model = ActorExporter(self.model.actor_vec_encoder, self.model.actor_body, self.model.actor_policy, self.sampler.observationNormalizer)
-        #onnx_export(export_model, self.vector_observation_space[0], "./checkpoints/test.onnx")
-        exporter = OnnxExporter(export_model, self.vector_observation_space)
-        exporter.export_onnx("./checkpoints/test.onnx")
+        
 
 
         if(self.resume_at > 0):
@@ -279,10 +275,15 @@ class BaseTrainer():
         checkpoint_data["seed"] = self.seed
         torch.save(checkpoint_data, self.monitor.checkpoint_path + self.run_id + "-" + str(update) + ".pt")
 
+        #export onnx
+        export_model = ActorExporter(self.model.actor_vec_encoder, self.model.actor_body, self.model.actor_policy, self.sampler.observationNormalizer)
+        exporter = OnnxExporter(export_model, self.vector_observation_space)
+        exporter.export_onnx(self.monitor.checkpoint_path + self.run_id + "-" + str(update) + ".onnx")
+
     def _load_checkpoint(self):
         """Loads a checkpoint from a specified file by the config and triggers the process of applying the loaded data."""
         self.monitor.log("Step 3: Loading model from " + self.configs["model"]["model_path"])
-        checkpoint = torch.load(self.configs["model"]["model_path"])
+        checkpoint = torch.load(self.configs["model"]["model_path"], map_location=self.device)
         if checkpoint["version"] != neroRL.__version__:
             self.monitor.log("WARNING: The loaded model is created with a different version of neroRL. " +
                 "The loaded model might not work properly.")
@@ -313,6 +314,7 @@ class BaseTrainer():
     def close(self):
         """Closes the environment and destroys the environment workers"""
         self.monitor.log("Terminate: Closing dummy ennvironment . . .")
+
         try:
             self.dummy_env.close()
         except:
