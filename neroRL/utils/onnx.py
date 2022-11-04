@@ -127,12 +127,11 @@ class ActorExporter(Module):
             -5,
             5,
         )
-
         
         #h1 = self.vec_encoder(torch.tensor(normalized_state).float())
         h1 = self.vec_encoder(normalized_state.float())
         h2 = self.body(h1)
         policy = self.head(h2)
-        return (self.version_number, self.memory_size_vector, policy.sample(), policy.mean.shape[1], policy.mean )
+        return (self.version_number, self.memory_size_vector, policy.sample(), policy.mean.shape[1].cuda() if torch.cuda.is_available() else policy.mean.shape[1], policy.mean)
         
 
