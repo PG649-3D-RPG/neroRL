@@ -53,6 +53,9 @@ class OnnxExporter: #modelled after mlagents/trainers/torch/model_serialization.
                 [1] + list(OnnxExporter._get_onnx_shape(observation_space)), device=device
             )
 
+        if torch.cuda.is_available():
+            dummy_obs.cuda()
+
         self.dummy_input = (dummy_obs)
 
         self.input_names = ["obs_0"]

@@ -1,3 +1,4 @@
+from os import device_encoding
 import torch
 import numpy as np
 import time
@@ -277,6 +278,8 @@ class BaseTrainer():
 
         #export onnx
         export_model = ActorExporter(self.model.actor_vec_encoder, self.model.actor_body, self.model.actor_policy, self.sampler.observationNormalizer)
+        if torch.cuda.is_available():
+            export_model.cuda()
         exporter = OnnxExporter(export_model, self.vector_observation_space, device=self.device)
         exporter.export_onnx(self.monitor.checkpoint_path + self.run_id + "-" + str(update) + ".onnx")
 
