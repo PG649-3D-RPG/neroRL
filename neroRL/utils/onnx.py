@@ -102,9 +102,12 @@ class ActorExporter(Module):
         self.vec_encoder = vec_encoder
         self.body = body
         self.head = head
-        self.normalization_mean = torch.tensor(normalizer.running_mean)
-        self.normalization_variance = torch.tensor(normalizer.running_variance)
-        self.normalization_steps = torch.tensor(normalizer.normalization_steps)
+        #self.normalization_mean = torch.tensor(normalizer.running_mean)
+        #self.normalization_variance = torch.tensor(normalizer.running_variance)
+        #self.normalization_steps = torch.tensor(normalizer.normalization_steps)
+        self.normalization_mean = torch.nn.Parameter(torch.tensor([normalizer.running_mean]), requires_grad=False)
+        self.normalization_variance = torch.nn.Parameter(torch.tensor([normalizer.running_variance]), requires_grad=False)
+        self.normalization_steps = torch.nn.Parameter(torch.tensor([normalizer.normalization_steps]), requires_grad=False)
 
         self.version_number = torch.nn.Parameter(
             torch.Tensor([self.MODEL_EXPORT_VERSION]), requires_grad=False
