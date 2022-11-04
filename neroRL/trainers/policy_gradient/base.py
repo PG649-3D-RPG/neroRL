@@ -277,7 +277,7 @@ class BaseTrainer():
 
         #export onnx
         export_model = ActorExporter(self.model.actor_vec_encoder, self.model.actor_body, self.model.actor_policy, self.sampler.observationNormalizer)
-        exporter = OnnxExporter(export_model, self.vector_observation_space)
+        exporter = OnnxExporter(export_model, self.vector_observation_space, device=self.device)
         exporter.export_onnx(self.monitor.checkpoint_path + self.run_id + "-" + str(update) + ".onnx")
 
     def _load_checkpoint(self):

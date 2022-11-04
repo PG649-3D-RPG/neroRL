@@ -46,11 +46,11 @@ class TensorNames:
         return TensorNames.observation_placeholder_prefix + str(index)
 
 class OnnxExporter: #modelled after mlagents/trainers/torch/model_serialization.py
-    def __init__(self, actor, observation_space):
+    def __init__(self, actor, observation_space, device):
         self.actor = actor
          
         dummy_obs = torch.zeros(
-                [1] + list(OnnxExporter._get_onnx_shape(observation_space))
+                [1] + list(OnnxExporter._get_onnx_shape(observation_space)), device=device
             )
 
         self.dummy_input = (dummy_obs)
