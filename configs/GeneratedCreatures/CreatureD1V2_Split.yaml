@@ -1,0 +1,85 @@
+# This config file documents all available configurations for training, evaluating or enjoying (watching an agent play in realtime) a model!
+# These are the defaults that are used if an incomplete config file was provided via the --config argument used.
+
+### ENVIRONMENT CONFIG ###
+environment:
+  # Environment Type (Unity, ObstacleTower, Minigrid, Procgen, CartPole)
+  type: "Unity"
+  # type: "Unity"
+  # Environment Name (Unity environments have to specify the path to the executable)
+  #name: "/home/jannik/Documents/Projektgruppe/Executables/Walker_13_07/Walker_13_07"
+  name: "/home/jannik/Documents/Projektgruppe/LiDo/Unity-Builds/4B_Creature_Dog1V2/4B_Creature_Dog1V2"  
+  # name: "./UnityBuilds/ObstacleTowerReduced/ObstacleTower"
+  frame_skip: 1
+  last_action_to_obs: False
+  last_reward_to_obs: False
+  obs_stacks: 1
+  grayscale: False
+  resize_vis_obs: [84, 84]
+  tanh_squashing: True
+  reset_params:
+    start-seed: 0
+    num-seeds: 100
+    view-size: 3
+
+### MODEL CONFIG ###
+model:
+  load_model: True
+  model_path: "/home/jannik/Documents/Projektgruppe/LiDo/checkpoints/GeneratedD1V2_Split-8700.pt"
+  checkpoint_interval: 100
+  activation: "tanh"
+  vis_encoder: "cnn"
+  vec_encoder: "linear" # "linear", "none"
+  num_vec_encoder_units: 512
+  hidden_layer: "default"
+  num_hidden_layers: 2
+  num_hidden_units: 512
+  num_hidden_pre_head: 512
+  tanh_squashing: False
+  normalize_observations: True
+  share_parameters: False
+
+### EVALUATION CONFIG ###
+evaluation:
+  evaluate: False
+  n_workers: 3
+  seeds: [1001, 1002, 1003, 1004, 1005]
+  interval: 50
+
+### SAMPLER CONFIG
+sampler:
+  type: "TrajectorySampler"
+  n_workers: 8
+  worker_steps: 1024
+  buffer_size: 900 #buffer size should be greater than batchsize/(n_workers*n_agents) 
+  batch_size: 102400
+
+### TRAINER CONFIG ###
+trainer:
+  algorithm: "PPO"
+  resume_at: 0
+  gamma: 0.995
+  lamda: 0.95
+  updates: 10000
+  epochs: 3
+  refresh_buffer_epoch: -1
+  n_mini_batches: 20
+  value_coefficient: 0.5
+  max_grad_norm: 0.5
+  share_parameters: False
+  learning_rate_schedule:
+    initial: 3.0e-4
+    final: 6.0e-6
+    power: 1.0
+    max_decay_steps: 10000
+  beta_schedule:
+    initial: 0.005
+    final: 0.005
+    power: 1.0
+    max_decay_steps: 10000
+  clip_range_schedule:
+    initial: 0.2
+    final: 0.2
+    power: 1.0
+    max_decay_steps: 10000
+

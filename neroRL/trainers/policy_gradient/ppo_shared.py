@@ -35,8 +35,8 @@ class PPOTrainer(BaseTrainer):
         self.use_early_stop = configs["trainer"]['use_early_stop']
         self.early_stop_target = configs["trainer"]['early_stop_target']
 
-        batch_size = self.n_workers * self.worker_steps
-        assert (batch_size % self.n_mini_batches == 0), "Batch Size divided by number of mini batches has a remainder."
+        #batch_size = self.n_workers * self.worker_steps
+        #assert (batch_size % self.n_mini_batches == 0), "Batch Size divided by number of mini batches has a remainder."
         self.max_grad_norm = configs["trainer"]["max_grad_norm"]
 
         self.lr_schedule = configs["trainer"]["learning_rate_schedule"]
