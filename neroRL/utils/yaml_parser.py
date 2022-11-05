@@ -100,6 +100,7 @@ class YamlParser:
             "max_grad_norm": 0.5,
             "use_early_stop": False,
             "early_stop_target": 0,
+            "normalize_advantage_batch": False,
             "share_parameters": True,
             "learning_rate_schedule": {"initial": 3.0e-4},
             "beta_schedule": {"initial": 0.001},

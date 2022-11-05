@@ -73,6 +73,7 @@ trainer:
   value_coefficient: 0.5
   max_grad_norm: 0.5
   share_parameters: False
+  normalize_advantage_batch: True
   learning_rate_schedule:
     initial: 3.0e-4
     final: 0

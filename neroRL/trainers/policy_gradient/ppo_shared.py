@@ -49,6 +49,8 @@ class PPOTrainer(BaseTrainer):
         self.beta = self.beta_schedule["initial"]
         self.clip_range = self.cr_schedule["initial"]
 
+        self.normalize_advantage_batch = configs["trainer"]["normalize_advantage_batch"]
+
 
         # Instantiate optimizer
         self.optimizer = optim.AdamW(self.model.parameters(), lr=self.learning_rate, eps=1e-5)
@@ -61,6 +63,10 @@ class PPOTrainer(BaseTrainer):
         train_info = {}
 
         early_stop = False
+
+        if self.normalize_advantage_batch: #normalize advantages for the entire batch rather than minibatch-wise
+            self.sampler.buffer.samples_flat["advantages"] = (self.sampler.buffer.samples_flat["advantages"] - self.sampler.buffer.samples_flat["advantages"].mean()) / (self.sampler.buffer.samples_flat["advantages"].std() + 1e-8)
+
         # Train policy and value function for e epochs using mini batches
         for epoch in range(self.epochs):
             if not early_stop:
@@ -122,7 +128,7 @@ class PPOTrainer(BaseTrainer):
         log_probs = policy.log_prob(samples["actions"]).sum(1)
 
         # Compute surrogates
-        normalized_advantage = (samples["advantages"] - samples["advantages"].mean()) / (samples["advantages"].std() + 1e-8)
+        normalized_advantage = (samples["advantages"] - samples["advantages"].mean()) / (samples["advantages"].std() + 1e-8) if not self.normalize_advantage_batch else samples["advantages"] #normalize advantages per minibatch if they have not been normalized per batch
 
         #removed this as it should not be necessary for continuous actions
         # Repeat is necessary for multi-discrete action spaces
