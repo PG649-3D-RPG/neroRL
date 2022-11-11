@@ -51,10 +51,13 @@ class UnityWrapper(Env):
         # Whether to record the trajectory of an entire episode
         self._record = record_trajectory
 
-        # Launch the environment's executable
-        self._env = UnityEnvironment(file_name = env_path, worker_id = worker_id, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config], timeout_wait=300)
+        
         # If the Unity Editor should be used instead of a build
-        # self._env = UnityEnvironment(file_name = None, worker_id = 0, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config])
+        if env_path == "editor":
+            self._env = UnityEnvironment(file_name = None, worker_id = 0, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config])
+        else:
+            # Launch the environment's executable
+            self._env = UnityEnvironment(file_name = env_path, worker_id = worker_id, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config], timeout_wait=300)
 
         # Reset the environment
         self._env.reset()
