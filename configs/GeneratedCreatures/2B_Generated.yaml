@@ -8,8 +8,7 @@ environment:
   # type: "Unity"
   # Environment Name (Unity environments have to specify the path to the executable)
   #name: "/home/jannik/Documents/Projektgruppe/Executables/Walker_13_07/Walker_13_07"
-  name: "/home/jannik/Documents/Projektgruppe/LiDo/Unity-Builds/4B_Creature_Dog2V3/4B_Creature_Dog2V3"
-  # name: "editor"
+  name: "/home/jannik/Documents/Projektgruppe/LiDo/Unity-Builds-Generated/2B_Generated_1911/2B_Generated_1911" 
   # name: "./UnityBuilds/ObstacleTowerReduced/ObstacleTower"
   frame_skip: 1
   last_action_to_obs: False
@@ -25,8 +24,8 @@ environment:
 
 ### MODEL CONFIG ###
 model:
-  load_model: True
-  model_path: "/home/jannik/Documents/Projektgruppe/LiDo/checkpoints/GeneratedD2V3_Split_MB-6800.pt"
+  load_model: False
+  model_path: "/home/jannik/Documents/Projektgruppe/LiDo/checkpoints/GeneratedD1V2_Split_MB-8500.pt"
   checkpoint_interval: 100
   activation: "tanh"
   vis_encoder: "cnn"
@@ -38,7 +37,6 @@ model:
   num_hidden_pre_head: 512
   tanh_squashing: False
   normalize_observations: True
-  share_parameters: False
 
 ### EVALUATION CONFIG ###
 evaluation:
@@ -52,7 +50,7 @@ sampler:
   type: "TrajectorySampler"
   n_workers: 8
   worker_steps: 1024
-  buffer_size: 1000 #buffer size should be greater than batchsize/(n_workers*n_agents) 
+  buffer_size: 900 #buffer size should be greater than batchsize/(n_workers*n_agents) 
   batch_size: 102400
 
 ### TRAINER CONFIG ###
@@ -64,7 +62,7 @@ trainer:
   updates: 10000
   epochs: 3
   refresh_buffer_epoch: -1
-  n_mini_batches: 8
+  n_mini_batches: 16
   value_coefficient: 0.5
   max_grad_norm: 0.5
   share_parameters: False
