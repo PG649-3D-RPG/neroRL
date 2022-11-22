@@ -46,7 +46,6 @@ class NdNormalizer:
         self.running_variance = np.ones(vec_obs_size)
 
     def forward(self, inputs):
-        self.update(inputs)
         normalized_state = np.clip(
             (inputs - self.running_mean)
             / np.sqrt(self.running_variance / self.normalization_steps),

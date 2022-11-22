@@ -103,7 +103,7 @@ def main():
 
     if not untrained:
         logger.info("Step 2: Loading model from " + configs["model"]["model_path"])
-        checkpoint = torch.load(configs["model"]["model_path"], map_location=torch.device('cpu'))
+        checkpoint = torch.load(configs["model"]["model_path"], map_location=device)
         model.load_state_dict(checkpoint["model"])
         if "recurrence" in configs["model"]:
             model.set_mean_recurrent_cell_states(checkpoint["hxs"], checkpoint["cxs"])
@@ -156,7 +156,7 @@ def main():
                 if x >= actions_next_step:
                     #dones[agent_index] = True
                     done += 1
-                    logger.warning("Finished Episode " + str(done))
+                    logger.warning("Finished Episode " + str(done) + " by agent with id " + str(agent_id))
                     logger.info("-> Episode Reward " + str(episode_end_info[x-actions_next_step]["reward"]))
                     logger.info("-> Episode Length " + str(episode_end_info[x-actions_next_step]["length"]))
                 
