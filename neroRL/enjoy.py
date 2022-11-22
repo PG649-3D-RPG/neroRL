@@ -17,6 +17,7 @@ from neroRL.utils.yaml_parser import YamlParser
 from neroRL.environments.wrapper import wrap_environment
 from neroRL.utils.video_recorder import VideoRecorder
 from neroRL.nn.actor_critic import create_actor_critic_model
+from neroRL.normalization.observation_normalizer import NdNormalizer
 
 # Setup logger
 logging.basicConfig(level = logging.INFO, handlers=[])
@@ -81,12 +82,10 @@ def main():
     configs["environment"]["reset_params"]["start-seed"] = seed
     configs["environment"]["reset_params"]["num-seeds"] = 1
     configs["environment"]["reset_params"]["seed"] = seed
-    env = wrap_environment(configs["environment"], worker_id, realtime_mode = True, record_trajectory = record_video or generate_website)
+    env = wrap_environment(configs["environment"], worker_id, realtime_mode = True, no_graphics=False, record_trajectory = record_video or generate_website)
     # Retrieve observation space
     visual_observation_space = env.visual_observation_space
     vector_observation_space = env.vector_observation_space
-    n_agents = env.n_agents
-    agent_id_map = env.agent_id_map
     #changed here 
     if isinstance(env.action_space, spaces.Box):
         action_space_shape = env.action_space.shape
@@ -99,12 +98,18 @@ def main():
     model = create_actor_critic_model(configs["model"], share_parameters, visual_observation_space,
                             vector_observation_space, action_space_shape,
                             configs["model"]["recurrence"] if "recurrence" in configs["model"] else None, device)
+
+    observationNormalizer = NdNormalizer(vector_observation_space) if configs["model"]["normalize_observations"] else None
+
     if not untrained:
         logger.info("Step 2: Loading model from " + configs["model"]["model_path"])
         checkpoint = torch.load(configs["model"]["model_path"], map_location=torch.device('cpu'))
         model.load_state_dict(checkpoint["model"])
         if "recurrence" in configs["model"]:
             model.set_mean_recurrent_cell_states(checkpoint["hxs"], checkpoint["cxs"])
+        if "normalizer" in checkpoint.keys():
+            observationNormalizer.set_data(checkpoint["normalizer"])
+
     model.eval()
 
     # Run all desired episodes
@@ -112,7 +117,10 @@ def main():
     logger.info("Step 3: Resetting the environment")
     logger.info("Step 3: Using seed " + str(seed))
     vis_obs, vec_obs, agent_ids, actions_next_step = env.reset(configs["environment"]["reset_params"])
-    dones = [False for _ in range(n_agents)]
+    n_agents = env.n_agents
+    for i, vec_ob in enumerate(vec_obs):
+        vec_obs[i] = observationNormalizer.forward(vec_ob) if observationNormalizer is not None else vec_ob
+    agent_id_map = env.agent_id_map
     done = 0
 
     # Play episode
@@ -122,31 +130,35 @@ def main():
     with torch.no_grad():
         while not done >= num_episodes:
             # Forward the neural net
-            vec_obs = torch.tensor(np.expand_dims(vec_obs, 0), dtype=torch.float32, device=device) if vec_obs is not None else None
-            policy, value, recurrent_cell, _ = model(vis_obs, vec_obs, recurrent_cell)
+            vec_obs = torch.tensor(vec_obs, dtype=torch.float32, device=device) if vec_obs is not None else None
+            policy, value, recurrent_cell, _ = model(vis_obs, vec_obs, recurrent_cell=None)
 
             action = policy.sample()
-
+  
             action_np = action.cpu().numpy()
-            pass_actions = np.zeros((len(actions_next_step),)+(action_space_shape))
-            for i,a in enumerate(actions_next_step):
+  
+            pass_actions = np.zeros((actions_next_step,)+(action_space_shape))
+            for i,a in enumerate(agent_ids[:actions_next_step]):
                 pass_actions[i] = action_np[agent_id_map[a]]
 
-        
-
             # Step environment
-            #action = action.squeeze().cpu().numpy()
-            # if action_space_shape[0] == 1:
-            #     action = [action]
-            #print(",".join(action))
-            vis_obs, vec_obs, rewards, agent_ids, actions_next_step, episode_end_info = env.step(pass_actions)
+            vis_obs, temp_vec_obs, rewards, agent_ids, actions_next_step, episode_end_info = env.step(pass_actions)
 
-            vec_obs = np.zeros_like(self.vec_obs)
+            vec_obs = np.zeros_like(vec_obs)
             for x in reversed(range(0, len(agent_ids))):
                 agent_id = agent_ids[x]
                 agent_index = agent_id_map[agent_id]
-                if vec_obs[x].shape is (): # after the initial reset, the get_steps method of the environments return terminal steps with empty observations (shape () ). These are ignored using this if statement
+                if temp_vec_obs[x].shape is (): # after the initial reset, the get_steps method of the environments return terminal steps with empty observations (shape () ). These are ignored using this if statement
                     continue
+
+                vec_obs[agent_index] = observationNormalizer.forward(temp_vec_obs[x]) if observationNormalizer is not None else temp_vec_obs[x]
+
+                if x >= actions_next_step:
+                    #dones[agent_index] = True
+                    done += 1
+                    logger.warning("Finished Episode " + str(done))
+                    logger.info("-> Episode Reward " + str(episode_end_info[x-actions_next_step]["reward"]))
+                    logger.info("-> Episode Length " + str(episode_end_info[x-actions_next_step]["length"]))
                 
 
     # logger.info("Episode Reward: " + str(info["reward"]))
