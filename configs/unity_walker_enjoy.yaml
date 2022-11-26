@@ -10,7 +10,8 @@ environment:
   # name: "/home/jannik/Documents/Projektgruppe/Executables/Walker_13_07/Walker_13_07"
   # name: "/home/jannik/Documents/Projektgruppe/Executables/Walker_09_09_MA/Walker_09_09"
   # name: "/home/jannik/Documents/Projektgruppe/Executables/Walker_20_09_10A_CamOver/Walker_20_09_10A_CamOver" 
-  name: "/home/jannik/Documents/Projektgruppe/LiDo/build_MA8/Walker_20_09_8A/Walker_20_09_8A"
+  # name: "/home/jannik/Documents/Projektgruppe/LiDo/build_MA8/Walker_20_09_8A/Walker_20_09_8A"
+  name: "/home/jannik/Documents/Projektgruppe/LiDo/Walker_Exec_16A/Walker_Exec_16A"
   # name: "./UnityBuilds/ObstacleTowerReduced/ObstacleTower"
   frame_skip: 1
   last_action_to_obs: False
@@ -27,13 +28,9 @@ environment:
 ### MODEL CONFIG ###
 model:
   load_model: True
-  #model_path: "/home/jannik/InstallGits/neroRL/checkpoints/MultiAgentBuildTest/20220914-172707_2/MultiAgentBuildTest-1055.pt"
-  # model_path: "/home/jannik/Documents/Projektgruppe/LiDo/checkpoints/UnityWalker8w16aEntMBsplit_/UnityWalker8w16aEntMBsplit_-9999.pt" 
-  # model_path: "/home/jannik/InstallGits/neroRL/checkpoints/OnnxExportEndTest/20221104-131619_7700/OnnxExportEndTest-2.pt"
-  model_path: "/home/jannik/InstallGits/neroRL/checkpoints/OnnxExportEndTest/20221104-131920_7700/OnnxExportEndTest-6.pt"
+  model_path: "/home/jannik/Documents/Projektgruppe/LiDo/checkpoints/UnityWalker8w16aEntMB_/20221021-163821_6720/UnityWalker8w16aEntMB_-9999.pt"
   checkpoint_interval: 50
-  policy_activation: "tanh"
-  value_activation: "tanh"
+  activation: "tanh"
   vis_encoder: "cnn"
   vec_encoder: "linear" # "linear", "none"
   num_vec_encoder_units: 512
@@ -43,7 +40,7 @@ model:
   num_hidden_pre_head: 512
   tanh_squashing: False
   normalize_observations: True
-  share_parameters: False
+  share_parameters: True
 
 ### EVALUATION CONFIG ###
 evaluation:
@@ -55,10 +52,9 @@ evaluation:
 ### SAMPLER CONFIG
 sampler:
   type: "TrajectorySampler"
-  n_workers: 2
-  worker_steps: 1024
-  buffer_size: 15000 #buffer size should be greater than batchsize/(n_workers*n_agents) 
-  batch_size: 16384
+  n_workers: 1
+  buffer_size: 5000 #buffer size should be greater than batchsize/(n_workers*n_agents) 
+  batch_size: 65536
 
 ### TRAINER CONFIG ###
 trainer:
@@ -72,8 +68,7 @@ trainer:
   n_mini_batches: 4
   value_coefficient: 0.5
   max_grad_norm: 0.5
-  share_parameters: False
-  normalize_advantage_batch: True
+  share_parameters: True
   learning_rate_schedule:
     initial: 3.0e-4
     final: 0

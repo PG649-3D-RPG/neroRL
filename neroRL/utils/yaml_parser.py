@@ -58,7 +58,9 @@ class YamlParser:
             "load_model": False,
             "model_path": "",
             "checkpoint_interval": 50,
-            "activation": "relu",
+            #"activation": "relu",
+            "value_activation": "tanh",
+            "policy_activation": "swish",
             "vis_encoder": "cnn",
             "vec_encoder": "linear",
             "num_vec_encoder_units": 128,
@@ -80,7 +82,9 @@ class YamlParser:
         sampler_dict = {
             "type": "TrajectorySampler",
             "n_workers": 16,
-            "worker_steps": 256
+            "worker_steps": 256,
+            "buffer_size": 1024,
+            "batch_size": 8192
         }
 
         ppo_dict = {
@@ -96,6 +100,7 @@ class YamlParser:
             "max_grad_norm": 0.5,
             "use_early_stop": False,
             "early_stop_target": 0,
+            "normalize_advantage_batch": False,
             "share_parameters": True,
             "learning_rate_schedule": {"initial": 3.0e-4},
             "beta_schedule": {"initial": 0.001},
@@ -252,6 +257,9 @@ class YamlParser:
             if "DAAC" in self._config["trainer"]:
                 if "adv_coefficient" not in self._config["trainer"]["DAAC"]:
                     self._config["trainer"]["DAAC"] = 0.25
+
+        # if self._config["sampler"]["buffer_size"] < (self._config["sampler"]["batch_size"] / self._config["sampler"]["n_workers"]) * 1.1:
+        #     assert(False), "Buffer size might not be large enough to generate a proper batch of specified batch size" #TODO fix this assertion with a reasonable calculation (including num_agents)
 
     def get_config(self):
         """ 

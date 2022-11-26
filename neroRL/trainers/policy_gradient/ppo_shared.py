@@ -35,8 +35,8 @@ class PPOTrainer(BaseTrainer):
         self.use_early_stop = configs["trainer"]['use_early_stop']
         self.early_stop_target = configs["trainer"]['early_stop_target']
 
-        batch_size = self.n_workers * self.worker_steps
-        assert (batch_size % self.n_mini_batches == 0), "Batch Size divided by number of mini batches has a remainder."
+        #batch_size = self.n_workers * self.worker_steps
+        #assert (batch_size % self.n_mini_batches == 0), "Batch Size divided by number of mini batches has a remainder."
         self.max_grad_norm = configs["trainer"]["max_grad_norm"]
 
         self.lr_schedule = configs["trainer"]["learning_rate_schedule"]
@@ -48,6 +48,8 @@ class PPOTrainer(BaseTrainer):
         self.learning_rate = self.lr_schedule["initial"]
         self.beta = self.beta_schedule["initial"]
         self.clip_range = self.cr_schedule["initial"]
+
+        self.normalize_advantage_batch = configs["trainer"]["normalize_advantage_batch"]
 
 
         # Instantiate optimizer
@@ -61,6 +63,10 @@ class PPOTrainer(BaseTrainer):
         train_info = {}
 
         early_stop = False
+
+        if self.normalize_advantage_batch: #normalize advantages for the entire batch rather than minibatch-wise
+            self.sampler.buffer.samples_flat["norm_advantages"] = (self.sampler.buffer.samples_flat["advantages"] - self.sampler.buffer.samples_flat["advantages"].mean()) / (self.sampler.buffer.samples_flat["advantages"].std() + 1e-8)
+
         # Train policy and value function for e epochs using mini batches
         for epoch in range(self.epochs):
             if not early_stop:
@@ -122,7 +128,7 @@ class PPOTrainer(BaseTrainer):
         log_probs = policy.log_prob(samples["actions"]).sum(1)
 
         # Compute surrogates
-        normalized_advantage = (samples["advantages"] - samples["advantages"].mean()) / (samples["advantages"].std() + 1e-8)
+        normalized_advantage = (samples["advantages"] - samples["advantages"].mean()) / (samples["advantages"].std() + 1e-8) if not self.normalize_advantage_batch else samples["norm_advantages"] #normalize advantages per minibatch if they have not been normalized per batch
 
         #removed this as it should not be necessary for continuous actions
         # Repeat is necessary for multi-discrete action spaces
@@ -148,7 +154,10 @@ class PPOTrainer(BaseTrainer):
 
 
         # Entropy Bonus
-        entropy_bonus = masked_mean(policy.entropy().sum(1), samples["loss_mask"])
+        #print("Policy entrop shape " + str(policy.entropy().shape))
+        #print("Policy shape " + str(type(policy)))
+        entropy_bonus = masked_mean(policy.entropy().mean(1), samples["loss_mask"]) #changed entropy calculation from sum(1) to mean(1) -> mean over all actions
+        #print("entropy bonus shape " + str(policy.entropy().sum(1).shape))
         # if squashing is used, then do not use entropy
         if self.tanhsquash:
             entropy_bonus = torch.zeros(entropy_bonus.size()) #use this if entropy should always be zero
@@ -209,9 +218,12 @@ class PPOTrainer(BaseTrainer):
         checkpoint_data = super().collect_checkpoint_data(update)
         checkpoint_data["model"] = self.model.state_dict()
         checkpoint_data["optimizer"] = self.optimizer.state_dict()
+        checkpoint_data["normalizer"] = self.sampler.observationNormalizer.get_data()
         return checkpoint_data
 
     def apply_checkpoint_data(self, checkpoint):
         super().apply_checkpoint_data(checkpoint)
         self.model.load_state_dict(checkpoint["model"])
         self.optimizer.load_state_dict(checkpoint["optimizer"])
+        if "normalizer" in checkpoint.keys():
+            self.sampler.observationNormalizer.set_data(checkpoint["normalizer"])

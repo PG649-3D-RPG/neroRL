@@ -7,10 +7,8 @@ environment:
   type: "Unity"
   # type: "Unity"
   # Environment Name (Unity environments have to specify the path to the executable)
-  # name: "/home/jannik/Documents/Projektgruppe/Executables/Walker_13_07/Walker_13_07"
-  # name: "/home/jannik/Documents/Projektgruppe/Executables/Walker_09_09_MA/Walker_09_09"
-  # name: "/home/jannik/Documents/Projektgruppe/Executables/Walker_20_09_10A_CamOver/Walker_20_09_10A_CamOver" 
-  name: "/home/jannik/Documents/Projektgruppe/LiDo/build_MA8/Walker_20_09_8A/Walker_20_09_8A"
+  #name: "/home/jannik/Documents/Projektgruppe/Executables/Walker_13_07/Walker_13_07"
+  name: "/home/jannik/Documents/Projektgruppe/LiDo/Unity-Builds/4B_Creature_Dog2V3/4B_Creature_Dog2V3" 
   # name: "./UnityBuilds/ObstacleTowerReduced/ObstacleTower"
   frame_skip: 1
   last_action_to_obs: False
@@ -27,18 +25,14 @@ environment:
 ### MODEL CONFIG ###
 model:
   load_model: True
-  #model_path: "/home/jannik/InstallGits/neroRL/checkpoints/MultiAgentBuildTest/20220914-172707_2/MultiAgentBuildTest-1055.pt"
-  # model_path: "/home/jannik/Documents/Projektgruppe/LiDo/checkpoints/UnityWalker8w16aEntMBsplit_/UnityWalker8w16aEntMBsplit_-9999.pt" 
-  # model_path: "/home/jannik/InstallGits/neroRL/checkpoints/OnnxExportEndTest/20221104-131619_7700/OnnxExportEndTest-2.pt"
-  model_path: "/home/jannik/InstallGits/neroRL/checkpoints/OnnxExportEndTest/20221104-131920_7700/OnnxExportEndTest-6.pt"
-  checkpoint_interval: 50
-  policy_activation: "tanh"
-  value_activation: "tanh"
+  model_path: "/home/jannik/Documents/Projektgruppe/LiDo/checkpoints/GeneratedD2V3_Split-8600.pt"
+  checkpoint_interval: 100
+  activation: "tanh"
   vis_encoder: "cnn"
   vec_encoder: "linear" # "linear", "none"
   num_vec_encoder_units: 512
   hidden_layer: "default"
-  num_hidden_layers: 3
+  num_hidden_layers: 2
   num_hidden_units: 512
   num_hidden_pre_head: 512
   tanh_squashing: False
@@ -55,10 +49,10 @@ evaluation:
 ### SAMPLER CONFIG
 sampler:
   type: "TrajectorySampler"
-  n_workers: 2
+  n_workers: 8
   worker_steps: 1024
-  buffer_size: 15000 #buffer size should be greater than batchsize/(n_workers*n_agents) 
-  batch_size: 16384
+  buffer_size: 900 #buffer size should be greater than batchsize/(n_workers*n_agents) 
+  batch_size: 102400
 
 ### TRAINER CONFIG ###
 trainer:
@@ -69,24 +63,23 @@ trainer:
   updates: 10000
   epochs: 3
   refresh_buffer_epoch: -1
-  n_mini_batches: 4
+  n_mini_batches: 20
   value_coefficient: 0.5
   max_grad_norm: 0.5
   share_parameters: False
-  normalize_advantage_batch: True
   learning_rate_schedule:
     initial: 3.0e-4
-    final: 0
+    final: 6.0e-6
     power: 1.0
     max_decay_steps: 10000
   beta_schedule:
     initial: 0.005
     final: 0.005
     power: 1.0
-    max_decay_steps: 800
+    max_decay_steps: 10000
   clip_range_schedule:
     initial: 0.2
     final: 0.2
     power: 1.0
-    max_decay_steps: 1000
+    max_decay_steps: 10000
 

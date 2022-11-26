@@ -15,6 +15,7 @@ from neroRL.utils.yaml_parser import YamlParser
 from neroRL.evaluator import Evaluator
 from neroRL.environments.wrapper import wrap_environment
 from neroRL.nn.actor_critic import create_actor_critic_model
+from neroRL.normalization.observation_normalizer import NdNormalizer
 
 # Setup logger
 logging.basicConfig(level = logging.INFO, handlers=[])
@@ -63,19 +64,19 @@ def main():
     # Create dummy environment to retrieve the shapes of the observation and action space for further processing
     logger.info("Step 1: Creating dummy environment of type " + configs["environment"]["type"])
     dummy_env = wrap_environment(configs["environment"], worker_id)
+    dummy_env.reset()
     visual_observation_space = dummy_env.visual_observation_space
     vector_observation_space = dummy_env.vector_observation_space
-    if isinstance(dummy_env.action_space, spaces.Discrete):
-        action_space_shape = (dummy_env.action_space.n,)
-    else:
-        action_space_shape = tuple(dummy_env.action_space.nvec)
+    n_agents = dummy_env.n_agents
+    if isinstance(dummy_env.action_space, spaces.Box):
+        action_space_shape = dummy_env.action_space.shape
     dummy_env.close()
 
     # Build or load model
     logger.info("Step 2: Creating model")
     share_parameters = False
     if configs["trainer"]["algorithm"] == "PPO":
-        share_parameters = configs["trainer"]["algorithm"]
+        share_parameters = configs["trainer"]["share_parameters"]
     model = create_actor_critic_model(configs["model"], share_parameters, visual_observation_space,
                             vector_observation_space, action_space_shape,
                             configs["model"]["recurrence"] if "recurrence" in configs["model"] else None, device)
@@ -83,10 +84,13 @@ def main():
         model.add_gae_estimator_head(action_space_shape, device)
     if not untrained:
         logger.info("Step 2: Loading model from " + configs["model"]["model_path"])
-        checkpoint = torch.load(configs["model"]["model_path"])
+        checkpoint = torch.load(configs["model"]["model_path"], map_location=device)
         model.load_state_dict(checkpoint["model"])
         if "recurrence" in configs["model"]:
             model.set_mean_recurrent_cell_states(checkpoint["hxs"], checkpoint["cxs"])
+        observationNormalizer = NdNormalizer(vector_observation_space) if configs["model"]["normalize_observations"] else None
+        if "normalizer" in checkpoint.keys():
+            observationNormalizer.set_data(checkpoint["normalizer"])
     model.eval()
 
     # Initialize evaluator
@@ -94,11 +98,12 @@ def main():
     logger.info("Step 3: Number of Workers: " + str(configs["evaluation"]["n_workers"]))
     logger.info("Step 3: Seeds: " + str(configs["evaluation"]["seeds"]))
     logger.info("Step 3: Number of episodes: " + str(len(configs["evaluation"]["seeds"]) * configs["evaluation"]["n_workers"]))
-    evaluator = Evaluator(configs, worker_id, visual_observation_space, vector_observation_space, video_path, record_video)
+    evaluator = Evaluator(configs, worker_id, visual_observation_space, vector_observation_space, action_space_shape, n_agents, video_path, record_video,observationNormalizer = observationNormalizer)
 
     # Evaluate
     logger.info("Step 4: Run evaluation . . .")
     eval_duration, raw_episode_results = evaluator.evaluate(model, device)
+
     episode_result = _process_episode_info(raw_episode_results)
 
     # Print results

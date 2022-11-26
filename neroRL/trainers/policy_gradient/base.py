@@ -1,3 +1,4 @@
+from os import device_encoding
 import torch
 import numpy as np
 import time
@@ -14,6 +15,7 @@ from neroRL.evaluator import Evaluator
 from neroRL.utils.monitor import Monitor
 from neroRL.utils.monitor import Tag
 from neroRL.utils.utils import set_library_seeds
+from neroRL.utils.onnx import ActorExporter, OnnxExporter
 
 class BaseTrainer():
     """The BaseTrainer is in charge of setting up the whole training loop of a policy gradient based algorithm."""
@@ -70,8 +72,10 @@ class BaseTrainer():
         # Create dummy environment to retrieve the shapes of the observation and action space for further processing
         self.monitor.log("Step 2: Creating dummy environment")
         self.dummy_env = wrap_environment(configs["environment"], worker_id)
+        self.dummy_env.reset()
         self.visual_observation_space = self.dummy_env.visual_observation_space
         self.vector_observation_space = self.dummy_env.vector_observation_space
+        self.n_agents = self.dummy_env.n_agents
         if isinstance(self.dummy_env.action_space, spaces.Discrete):
             self.action_space_shape = (self.dummy_env.action_space.n,)
         elif isinstance(self.dummy_env.action_space, spaces.Box):
@@ -102,7 +106,7 @@ class BaseTrainer():
         # Setup Sampler
         self.monitor.log("Step 4: Launching training environments of type " + configs["environment"]["type"])
         self.sampler = TrajectorySampler(configs, worker_id, self.visual_observation_space, self.vector_observation_space,
-                                        self.action_space_shape, self.model, self.device)
+                                        self.action_space_shape, self.n_agents, self.model, self.device)
 
     def run_training(self):
         """Orchestrates the policy gradient based training:
@@ -118,6 +122,9 @@ class BaseTrainer():
         # Load checkpoint and apply data
         if self.configs["model"]["load_model"]:
             self._load_checkpoint()
+
+        
+
 
         if(self.resume_at > 0):
             self.monitor.log("Step 5: Resuming training at step " + str(self.resume_at) + " using " + str(self.device) + " . . .")
@@ -269,10 +276,17 @@ class BaseTrainer():
         checkpoint_data["seed"] = self.seed
         torch.save(checkpoint_data, self.monitor.checkpoint_path + self.run_id + "-" + str(update) + ".pt")
 
+        #export onnx
+        export_model = ActorExporter(self.model.actor_vec_encoder, self.model.actor_body, self.model.actor_policy, self.sampler.observationNormalizer)
+        if torch.cuda.is_available():
+            export_model.cuda()
+        exporter = OnnxExporter(export_model, self.vector_observation_space, device=self.device)
+        exporter.export_onnx(self.monitor.checkpoint_path + self.run_id + "-" + str(update) + ".onnx")
+
     def _load_checkpoint(self):
         """Loads a checkpoint from a specified file by the config and triggers the process of applying the loaded data."""
         self.monitor.log("Step 3: Loading model from " + self.configs["model"]["model_path"])
-        checkpoint = torch.load(self.configs["model"]["model_path"])
+        checkpoint = torch.load(self.configs["model"]["model_path"], map_location=self.device)
         if checkpoint["version"] != neroRL.__version__:
             self.monitor.log("WARNING: The loaded model is created with a different version of neroRL. " +
                 "The loaded model might not work properly.")
@@ -303,6 +317,7 @@ class BaseTrainer():
     def close(self):
         """Closes the environment and destroys the environment workers"""
         self.monitor.log("Terminate: Closing dummy ennvironment . . .")
+
         try:
             self.dummy_env.close()
         except:

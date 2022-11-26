@@ -80,7 +80,8 @@ class ValueEstimator(Module):
             {torch.tensor} -- Estimated value
         """
         h = self.activ_fn(self.linear(h))
-        return self.value(h).reshape(-1)
+        value = self.value(h)
+        return value.squeeze(len(value.shape)-1)#.reshape(-1) #TODO fix this reshape 
 
 class AdvantageEstimator(Module):
     """Used by the DAAC Algorithm by Raileanu & Fergus, 2021, https://arxiv.org/abs/2102.10330"""

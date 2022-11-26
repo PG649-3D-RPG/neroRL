@@ -28,14 +28,14 @@ class ActorCriticSeperateWeights(ActorCriticBase):
         self.mean_cxs = np.zeros((self.recurrence["hidden_state_size"], 2), dtype=np.float32) if recurrence is not None else None
 
         # Create the base models
-        self.actor_vis_encoder, self.actor_vec_encoder, self.actor_recurrent_layer, self.actor_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
-        self.critic_vis_encoder, self.critic_vec_encoder, self.critic_recurrent_layer, self.critic_body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
+        self.actor_vis_encoder, self.actor_vec_encoder, self.actor_recurrent_layer, self.actor_body = self.create_base_model(config, vis_obs_space, vec_obs_shape, self.policy_activ_fn)
+        self.critic_vis_encoder, self.critic_vec_encoder, self.critic_recurrent_layer, self.critic_body = self.create_base_model(config, vis_obs_space, vec_obs_shape, self.value_activ_fn)
 
         # Policy head/output
-        self.actor_policy = ContinuousActionPolicy(in_features = self.out_features_body, pre_head_features=config["num_hidden_pre_head"], action_space_shape = action_space_shape, activ_fn = self.activ_fn, tanh_squashing= config["tanh_squashing"])
+        self.actor_policy = ContinuousActionPolicy(in_features = self.out_features_body, pre_head_features=config["num_hidden_pre_head"], action_space_shape = action_space_shape, activ_fn = self.policy_activ_fn, tanh_squashing= config["tanh_squashing"])
 
         # Value function head/output
-        self.critic = ValueEstimator(in_features = self.out_features_body, pre_head_features=config["num_hidden_pre_head"], activ_fn = self.activ_fn)
+        self.critic = ValueEstimator(in_features = self.out_features_body, pre_head_features=config["num_hidden_pre_head"], activ_fn = self.value_activ_fn)
 
         # Organize all modules inside a dictionary
         # This will be used for collecting gradient statistics inside the trainer
@@ -279,13 +279,13 @@ class ActorCriticSharedWeights(ActorCriticBase):
         self.share_parameters = True
 
         # Create the base model
-        self.vis_encoder, self.vec_encoder, self.recurrent_layer, self.body = self.create_base_model(config, vis_obs_space, vec_obs_shape)
+        self.vis_encoder, self.vec_encoder, self.recurrent_layer, self.body = self.create_base_model(config, vis_obs_space, vec_obs_shape, self.policy_activ_fn)
 
         # Policy head/output
-        self.actor_policy = ContinuousActionPolicy(self.out_features_body, config["num_hidden_pre_head"], action_space_shape, self.activ_fn, config["tanh_squashing"])
+        self.actor_policy = ContinuousActionPolicy(self.out_features_body, config["num_hidden_pre_head"], action_space_shape, self.policy_activ_fn, config["tanh_squashing"])
 
         # Value function head/output
-        self.critic = ValueEstimator(self.out_features_body, config["num_hidden_pre_head"], self.activ_fn)
+        self.critic = ValueEstimator(self.out_features_body, config["num_hidden_pre_head"], self.value_activ_fn)
 
         # Organize all modules inside a dictionary
         # This will be used for collecting gradient statistics inside the trainer

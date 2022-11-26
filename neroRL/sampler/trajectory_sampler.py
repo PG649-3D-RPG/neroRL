@@ -6,10 +6,12 @@ from neroRL.utils.worker import Worker
 
 from neroRL.normalization.observation_normalizer import NdNormalizer
 
+import time
+
 class TrajectorySampler():
     """The TrajectorySampler employs n environment workers to sample data for s worker steps regardless if an episode ended.
     Hence, the collected trajectories may contain multiple episodes or incomplete ones."""
-    def __init__(self, configs, worker_id, visual_observation_space, vector_observation_space, action_space_shape, model, device) -> None:
+    def __init__(self, configs, worker_id, visual_observation_space, vector_observation_space, action_space_shape, n_agents, model, device) -> None:
         """Initializes the TrajectorSampler and launches its environment workers.
 
         Arguments:
@@ -27,14 +29,21 @@ class TrajectorySampler():
         self.vector_observation_space = vector_observation_space
         self.model = model
         self.n_workers = configs["sampler"]["n_workers"]
+        self.n_agents = n_agents
         self.worker_steps = configs["sampler"]["worker_steps"]
+        self.batch_size = configs["sampler"]["batch_size"]
+        self.buffer_size = configs["sampler"]["buffer_size"]
         self.recurrence = None if not "recurrence" in configs["model"] else configs["model"]["recurrence"]
         self.device = device
 
         self.observationNormalizer = NdNormalizer(vector_observation_space) if configs["model"]["normalize_observations"] else None
 
+        self.action_space_shape = action_space_shape
+        self.visual_observation_space = visual_observation_space
+        self.vector_observation_space = vector_observation_space
+        self.action_space_shape = action_space_shape
         # Create Buffer
-        self.buffer = Buffer(self.n_workers, self.worker_steps, visual_observation_space, vector_observation_space,
+        self.buffer = Buffer(self.batch_size, self.buffer_size, self.n_workers, self.n_agents, self.worker_steps, visual_observation_space, vector_observation_space,
                         action_space_shape, self.recurrence, self.device, self.model.share_parameters, self)
 
         # Launch workers
@@ -46,7 +55,7 @@ class TrajectorySampler():
         else:
             self.vis_obs = None
         if vector_observation_space is not None:
-            self.vec_obs = np.zeros((self.n_workers,) + vector_observation_space, dtype=np.float32)
+            self.vec_obs = np.zeros((self.n_workers,self.n_agents) + vector_observation_space, dtype=np.float32)
         else:
             self.vec_obs = None
 
@@ -60,16 +69,27 @@ class TrajectorySampler():
         else:
             self.recurrent_cell = None
 
+        self.agent_id_map = [{} for _ in self.workers]
+        self.actions_next_step = [ [] for _ in self.workers]
         # Reset workers
         for worker in self.workers:
             worker.child.send(("reset", None))
         # Grab initial observations
-        for i, worker in enumerate(self.workers):
-            vis_obs, vec_obs = worker.child.recv()
+        for w, worker in enumerate(self.workers):
+            vis_obs, vec_obs, agent_ids, actions_next_step = worker.child.recv()
             if self.vis_obs is not None:
-                self.vis_obs[i] = vis_obs
+                self.vis_obs[w] = vis_obs
             if self.vec_obs is not None:
-                self.vec_obs[i] = vec_obs
+                self.vec_obs[w] = vec_obs
+
+            for agent_id in agent_ids:
+                self.agent_id_map[w][agent_id] = len(self.agent_id_map[w].items())
+
+            self.actions_next_step[w] = list(agent_ids[:actions_next_step])
+
+        self.next_step_indices = np.zeros((self.n_workers, self.n_agents), dtype=np.int32)
+        self.sampled_steps = 0
+
 
     def sample(self, device) -> list:
         """Samples training data (i.e. experience tuples) using n workers for t worker steps.
@@ -82,80 +102,98 @@ class TrajectorySampler():
             achieved reward and the episode length.
         """
         episode_infos = []
+        self.next_step_indices = np.zeros((self.n_workers, self.n_agents), dtype=np.int32)
+        self.sampled_steps = 0
+
+        self.buffer = Buffer(self.batch_size, self.buffer_size, self.n_workers, self.n_agents, self.worker_steps, self.visual_observation_space, self.vector_observation_space,
+                        self.action_space_shape, self.recurrence, self.device, self.model.share_parameters, self)
+
 
         # Sample actions from the model and collect experiences for training
-        for t in range(self.worker_steps):
+        for t in range(self.buffer_size):
             # Gradients can be omitted for sampling data
             with torch.no_grad():
                 # Save the initial observations and hidden states
                 if self.vis_obs is not None:
                     self.buffer.vis_obs[:, t] = torch.tensor(self.vis_obs)
                 if self.vec_obs is not None:
-                    self.buffer.vec_obs[:, t] = torch.tensor(self.vec_obs)
-                # Store recurrent cell states inside the buffer
-                if self.recurrence is not None:
-                    if self.recurrence["layer_type"] == "gru":
-                        self.buffer.hxs[:, t] = self.recurrent_cell.squeeze(0)
-                    elif self.recurrence["layer_type"] == "lstm":
-                        self.buffer.hxs[:, t] = self.recurrent_cell[0].squeeze(0)
-                        self.buffer.cxs[:, t] = self.recurrent_cell[1].squeeze(0)
+                    for w in range(0, self.n_workers):
+                        for a in range(0, self.n_agents):
+                            if np.any(self.vec_obs[w,a,:]): 
+                                self.buffer.vec_obs[w,a, self.next_step_indices[w,a]] = torch.tensor(self.vec_obs[w,a,:])
 
                 # Forward the model to retrieve the policy (making decisions), 
                 # the states' value of the value function and the recurrent hidden states (if available)
                 vis_obs_batch = torch.tensor(self.vis_obs) if self.vis_obs is not None else None
                 vec_obs_batch = torch.tensor(self.vec_obs) if self.vec_obs is not None else None
                 policy, value, self.recurrent_cell, _ = self.model(vis_obs_batch, vec_obs_batch, self.recurrent_cell)
-                self.buffer.values[:, t] = value.data
+
+
+                for w in range(self.n_workers):
+                    for agent_id_with_action in self.actions_next_step[w]:
+                        agent_index = self.agent_id_map[w][agent_id_with_action]
+
+                        self.buffer.values[w, agent_index, self.next_step_indices[w, agent_index]] = value[w, agent_index] #TODO apparently numpy cuts one dimension here as it would be (8,1,1) [numpy cuts to (8,)]. Therefore the agent dimension is not accessible for one agent builds
+
+                        self.buffer.std[w, agent_index, self.next_step_indices[w,agent_index]] = policy.stddev[w, agent_index]
 
                 # Sample actions
                 action = policy.sample()
 
-                self.buffer.std = policy.stddev
-                
-                self.buffer.actions[:, t] = action
-                
-                self.buffer.log_probs[:, t] = policy.log_prob(action).sum(1)
-            # Execute actions
-            action = self.buffer.actions[:, t].cpu().numpy() # send actions as batch to the CPU, to save IO time
-            for w, worker in enumerate(self.workers):
-                worker.child.send(("step", action[w]))
+                #Might calculate log_props for unused actions
+                log_probs = policy.log_prob(action).sum(2) #log probs has shape 8,39 for a 8x10 agent config with axis 1
 
+                action_np = action.cpu().numpy()
+                pass_actions = [np.zeros((len(self.actions_next_step[x]),)+(self.action_space_shape)) for x in range(self.n_workers)]
+ 
+                for w in range(self.n_workers):
+                    for j,a in enumerate(self.actions_next_step[w]):
+                        pass_actions[w][j] = action_np[w, self.agent_id_map[w][a]]
+                        
+                        self.buffer.actions[w,self.agent_id_map[w][a], self.next_step_indices[w,self.agent_id_map[w][a]]] = action[w,self.agent_id_map[w][a],:]
+
+                        self.buffer.log_probs[w, self.agent_id_map[w][a], self.next_step_indices[w, self.agent_id_map[w][a]]] = log_probs[w, self.agent_id_map[w][a]]
+
+            # Execute actions
+            for w, worker in enumerate(self.workers):
+                worker.child.send(("step", pass_actions[w]))
+
+            self.vec_obs = np.zeros_like(self.vec_obs)
             # Retrieve results
             for w, worker in enumerate(self.workers):
-                vis_obs, vec_obs, self.buffer.rewards[w, t], self.buffer.dones[w, t], info = worker.child.recv()
+                vis_obs, vec_obs, rewards, agent_ids, actions_next_step, episode_end_info = worker.child.recv()            
 
-                if self.observationNormalizer is not None:
-                    vec_obs = self.observationNormalizer.forward(vec_obs)
+                self.actions_next_step[w] = list(agent_ids[:actions_next_step])
+
+                for x in reversed(range(0, len(agent_ids))):
+                    agent_id = agent_ids[x]
+                    agent_index = self.agent_id_map[w][agent_id]
+
+                    if vec_obs[x].shape is (): # after the initial reset, the get_steps method of the environments return terminal steps with empty observations (shape () ). These are ignored using this if statement
+                        continue
+
+                    if self.observationNormalizer is not None:
+                        self.observationNormalizer.update(vec_obs[x])
+
+                    self.vec_obs[w, agent_index] = self.observationNormalizer.forward(vec_obs[x]) if self.observationNormalizer is not None else vec_obs[x]
+                    self.buffer.rewards[w, agent_index, self.next_step_indices[w, agent_index]] = rewards[x]
+
+                    if x >= actions_next_step:
+                        self.buffer.dones[w, agent_index, self.next_step_indices[w, agent_index]] = 1
+
+                    self.next_step_indices[w][agent_id] += 1
+                    self.sampled_steps += 1
+
                     
                 if self.vis_obs is not None:
                     self.vis_obs[w] = vis_obs
-                if self.vec_obs is not None:
-                    self.vec_obs[w] = vec_obs
-                if info:
-                    # Store the information of the completed episode (e.g. total reward, episode length)
-                    episode_infos.append(info)
-                    # Reset agent (potential interface for providing reset parameters)
-                    worker.child.send(("reset", None))
-                    # Get data from reset
-                    vis_obs, vec_obs = worker.child.recv()
-                    
-                    if self.observationNormalizer is not None:
-                        vec_obs = self.observationNormalizer.forward(vec_obs)
+                if episode_end_info:
+                    episode_infos.extend(episode_end_info)
+            
+            if self.sampled_steps >= self.batch_size:
+                break #breaks the loop if enough data has been sampled
 
-                    if self.vis_obs is not None:
-                        self.vis_obs[w] = vis_obs
-                    if self.vec_obs is not None:
-                        self.vec_obs[w] = vec_obs
-                    # Reset recurrent cell states
-                    if self.recurrence is not None:
-                        if self.recurrence["reset_hidden_state"]:
-                            hxs, cxs = self.model.init_recurrent_cell_states(1, self.device)
-                            if self.recurrence["layer_type"] == "gru":
-                                self.recurrent_cell[:, w] = hxs
-                            elif self.recurrence["layer_type"] == "lstm":
-                                self.recurrent_cell[0][:, w] = hxs
-                                self.recurrent_cell[1][:, w] = cxs
-
+        self.buffer.last_filled_indices = self.next_step_indices
         return episode_infos
 
     def last_vis_obs(self) -> np.ndarray:
@@ -170,8 +208,15 @@ class TrajectorySampler():
         Returns:
             {np.ndarray} -- The last vector observation of the sampling process, which can be used to calculate the advantage.
         """
-        return torch.tensor(self.vec_obs) if self.vec_obs is not None else None
-
+        if self.buffer.vec_obs is not None:
+            past_vec_obs = np.zeros_like(self.vec_obs)
+            for w in range(self.n_workers):
+                for a in range(self.n_agents):
+                    past_vec_obs[w,a] = self.buffer.vec_obs.cpu().numpy()[w,a, self.next_step_indices[w,a]-1]
+            return torch.tensor(past_vec_obs) 
+            
+        return None
+        
     def last_recurrent_cell(self) -> tuple:
         """
         Returns:

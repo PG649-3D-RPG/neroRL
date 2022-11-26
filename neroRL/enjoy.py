@@ -17,6 +17,7 @@ from neroRL.utils.yaml_parser import YamlParser
 from neroRL.environments.wrapper import wrap_environment
 from neroRL.utils.video_recorder import VideoRecorder
 from neroRL.nn.actor_critic import create_actor_critic_model
+from neroRL.normalization.observation_normalizer import NdNormalizer
 
 # Setup logger
 logging.basicConfig(level = logging.INFO, handlers=[])
@@ -81,7 +82,7 @@ def main():
     configs["environment"]["reset_params"]["start-seed"] = seed
     configs["environment"]["reset_params"]["num-seeds"] = 1
     configs["environment"]["reset_params"]["seed"] = seed
-    env = wrap_environment(configs["environment"], worker_id, realtime_mode = True, record_trajectory = record_video or generate_website)
+    env = wrap_environment(configs["environment"], worker_id, realtime_mode = True, no_graphics=False, record_trajectory = record_video or generate_website)
     # Retrieve observation space
     visual_observation_space = env.visual_observation_space
     vector_observation_space = env.vector_observation_space
@@ -97,88 +98,72 @@ def main():
     model = create_actor_critic_model(configs["model"], share_parameters, visual_observation_space,
                             vector_observation_space, action_space_shape,
                             configs["model"]["recurrence"] if "recurrence" in configs["model"] else None, device)
-    if "DAAC" in configs["trainer"]:
-        model.add_gae_estimator_head(action_space_shape, device)
+
+    observationNormalizer = NdNormalizer(vector_observation_space) if configs["model"]["normalize_observations"] else None
+
     if not untrained:
         logger.info("Step 2: Loading model from " + configs["model"]["model_path"])
-        checkpoint = torch.load(configs["model"]["model_path"])
+        checkpoint = torch.load(configs["model"]["model_path"], map_location=device)
         model.load_state_dict(checkpoint["model"])
         if "recurrence" in configs["model"]:
             model.set_mean_recurrent_cell_states(checkpoint["hxs"], checkpoint["cxs"])
+        if "normalizer" in checkpoint.keys():
+            observationNormalizer.set_data(checkpoint["normalizer"])
+
     model.eval()
 
     # Run all desired episodes
-    # Note: Only one episode is run upon generating a result website or rendering a video
-    for _ in range(num_episodes):
-        # Reset environment
-        logger.info("Step 3: Resetting the environment")
-        logger.info("Step 3: Using seed " + str(seed))
-        vis_obs, vec_obs = env.reset(configs["environment"]["reset_params"])
-        done = False
-        
-        # Init hidden state (None if not available)
-        if "recurrence" in configs["model"]:
-            hxs, cxs = model.init_recurrent_cell_states(1, device)
-            if configs["model"]["recurrence"]["layer_type"] == "gru":
-                recurrent_cell = hxs
-            elif configs["model"]["recurrence"]["layer_type"] == "lstm":
-                recurrent_cell = (hxs, cxs)
-        else:
-            recurrent_cell = None
+    # Reset environment
+    logger.info("Step 3: Resetting the environment")
+    logger.info("Step 3: Using seed " + str(seed))
+    vis_obs, vec_obs, agent_ids, actions_next_step = env.reset(configs["environment"]["reset_params"])
+    n_agents = env.n_agents
+    for i, vec_ob in enumerate(vec_obs):
+        vec_obs[i] = observationNormalizer.forward(vec_ob) if observationNormalizer is not None else vec_ob
+    agent_id_map = env.agent_id_map
+    done = 0
 
-        # Play episode
-        logger.info("Step 4: Run " + str(num_episodes) + " episode(s) in realtime . . .")
+    # Play episode
+    logger.info("Step 4: Run " + str(num_episodes) + " episode(s) in realtime . . .")
 
-        # Store data for video recording
-        probs = []
-        entropies = []
-        values = []
-        actions = []
+    # Play one episode
+    with torch.no_grad():
+        while not done >= num_episodes:
+            # Forward the neural net
+            vec_obs = torch.tensor(vec_obs, dtype=torch.float32, device=device) if vec_obs is not None else None
+            policy, value, recurrent_cell, _ = model(vis_obs, vec_obs, recurrent_cell=None)
 
-        # Play one episode
-        with torch.no_grad():
-            while not done:
-                # Forward the neural net
-                vis_obs = torch.tensor(np.expand_dims(vis_obs, 0), dtype=torch.float32, device=device) if vis_obs is not None else None
-                vec_obs = torch.tensor(np.expand_dims(vec_obs, 0), dtype=torch.float32, device=device) if vec_obs is not None else None
-                policy, value, recurrent_cell, _ = model(vis_obs, vec_obs, recurrent_cell)
+            action = policy.sample()
+  
+            action_np = action.cpu().numpy()
+  
+            pass_actions = np.zeros((actions_next_step,)+(action_space_shape))
+            for i,a in enumerate(agent_ids[:actions_next_step]):
+                pass_actions[i] = action_np[agent_id_map[a]]
 
-                action = policy.sample()
+            # Step environment
+            vis_obs, temp_vec_obs, rewards, agent_ids, actions_next_step, episode_end_info = env.step(pass_actions)
 
-                # Store data for video recording
-                actions.append(action)
-                probs.append(policy.log_prob(action).sum(1).cpu().numpy())
-                entropies.append(policy.entropy().sum(1).cpu().numpy())
-                values.append(value.cpu().numpy())
+            vec_obs = np.zeros_like(vec_obs)
+            for x in reversed(range(0, len(agent_ids))):
+                agent_id = agent_ids[x]
+                agent_index = agent_id_map[agent_id]
+                if temp_vec_obs[x].shape is (): # after the initial reset, the get_steps method of the environments return terminal steps with empty observations (shape () ). These are ignored using this if statement
+                    continue
 
-                # Step environment
-                action = action.squeeze().cpu().numpy()
-                if action_space_shape[0] == 1:
-                    action = [action]
-                print(",".join(action))
-                vis_obs, vec_obs, _, done, info = env.step(action)
+                vec_obs[agent_index] = observationNormalizer.forward(temp_vec_obs[x]) if observationNormalizer is not None else temp_vec_obs[x]
 
-        logger.info("Episode Reward: " + str(info["reward"]))
-        logger.info("Episode Length: " + str(info["length"]))
+                if x >= actions_next_step:
+                    #dones[agent_index] = True
+                    done += 1
+                    logger.warning("Finished Episode " + str(done) + " by agent with id " + str(agent_id))
+                    logger.info("-> Episode Reward " + str(episode_end_info[x-actions_next_step]["reward"]))
+                    logger.info("-> Episode Length " + str(episode_end_info[x-actions_next_step]["length"]))
+                
 
-        # Complete video data
-        if record_video or generate_website:
-            trajectory_data = env.get_episode_trajectory
-            trajectory_data["action_names"] = env.action_names
-            trajectory_data["actions"] = actions
-            trajectory_data["probs"] = probs
-            trajectory_data["entropies"] = entropies
-            trajectory_data["values"] = values
-            trajectory_data["episode_reward"] = info["reward"]
-            trajectory_data["seed"] = seed
-            # Init video recorder
-            video_recorder = VideoRecorder(video_path, frame_rate)
-            # Render and serialize video
-            if record_video:
-                video_recorder.render_video(trajectory_data)
-            # Generate website
-            if generate_website:
-                video_recorder.generate_website(trajectory_data, configs)
+    # logger.info("Episode Reward: " + str(info["reward"]))
+    # logger.info("Episode Length: " + str(info["length"]))
+
 
     env.close()
 
