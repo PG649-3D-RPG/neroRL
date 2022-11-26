@@ -57,7 +57,7 @@ class UnityWrapper(Env):
             self._env = UnityEnvironment(file_name = None, worker_id = 0, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config])
         else:
             # Launch the environment's executable
-            self._env = UnityEnvironment(file_name = env_path, worker_id = worker_id, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config], timeout_wait=300)
+            self._env = UnityEnvironment(file_name = env_path, worker_id = worker_id, no_graphics = no_graphis, side_channels=[self.reset_parameters, self.engine_config], timeout_wait=300) #, log_folder = "-", additional_args = ["-nolog", "True"])
 
         # Reset the environment
         self._env.reset()
@@ -157,7 +157,7 @@ class UnityWrapper(Env):
     def vector_observation_space(self):
         return self._vector_observatoin_space
 
-    def reset(self, reset_params = None):
+    def reset(self, reset_params = None, hard_reset = False):
         """Resets the environment based on a global or just specified config.
         
         Keyword Arguments:
@@ -188,7 +188,8 @@ class UnityWrapper(Env):
         self.reset_parameters.set_float_parameter("seed", seed)
 
         # Reset and verify the environment
-        # self._env.reset()
+        if hard_reset:
+            self._env.reset()
         #info, terminal_info = self._env.get_steps(self._behavior_name)
         #self._verify_environment()
 
@@ -232,7 +233,6 @@ class UnityWrapper(Env):
         self._env.set_actions(self._behavior_name, action_tuple)
         self._env.step()
         info, terminal_info = self._env.get_steps(self._behavior_name)
-   
 
         # Process step results
         vis_obs, vec_obs, rewards, agent_ids, actions_next_step = self._process_agent_info(info, terminal_info)

@@ -73,7 +73,7 @@ class Evaluator():
                 reset_params = self.configs["environment"]["reset_params"]
                 reset_params["start-seed"] = seed
                 reset_params["num-seeds"] = 1
-                worker.child.send(("reset", reset_params))
+                worker.child.send(("hard_reset", reset_params))
             # Grab initial observations
             for w, worker in enumerate(self.workers):
                 vis, vec, agent_ids, actions_next_step = worker.child.recv()
@@ -87,7 +87,7 @@ class Evaluator():
                 self.actions_next_step[w] = list(agent_ids[:actions_next_step])           
 
             # Every worker plays its episode
-            dones = np.zeros((self.n_workers,self.n_agents), dtype=bool)
+            dones = np.zeros((self.n_workers,self.n_agents))
 
             with torch.no_grad():
                 while not np.all(dones):
@@ -134,13 +134,12 @@ class Evaluator():
 
                                 vec_obs[w][agent_index] = self.observationNormalizer.forward(temp_vec_obs[x]) if self.observationNormalizer is not None else temp_vec_obs[x]
                              
-                            if x >= actions_next_step:
-                                if not dones[w, agent_index]:
-                                    info = episode_end_info[x-actions_next_step]
-                                    info["seed"] = seed
-                                    episode_infos.append(info)                                   
-                                    dones[w, agent_index] = 1    
-                                    print("dones " + str(dones))                            
+                                if x >= actions_next_step:
+                                    if not dones[w, agent_index]:
+                                        info = episode_end_info[x-actions_next_step]
+                                        info["seed"] = seed
+                                        episode_infos.append(info)                                   
+                                        dones[w, agent_index] = 1    
         
                 print("Finished Seed")
             # Seconds needed for a whole update

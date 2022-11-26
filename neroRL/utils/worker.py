@@ -34,6 +34,8 @@ def worker_process(remote: multiprocessing.connection.Connection, env_seed, env_
                 remote.send(env.step(data))
             elif cmd == "reset":
                 remote.send(env.reset(data))
+            elif cmd == "hard_reset":
+                remote.send(env.reset(data,True))    
             elif cmd == "close":
                 remote.send(env.close())
                 remote.close()

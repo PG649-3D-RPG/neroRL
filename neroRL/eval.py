@@ -98,11 +98,12 @@ def main():
     logger.info("Step 3: Number of Workers: " + str(configs["evaluation"]["n_workers"]))
     logger.info("Step 3: Seeds: " + str(configs["evaluation"]["seeds"]))
     logger.info("Step 3: Number of episodes: " + str(len(configs["evaluation"]["seeds"]) * configs["evaluation"]["n_workers"]))
-    evaluator = Evaluator(configs, worker_id, visual_observation_space, vector_observation_space, action_space_shape, n_agents, video_path, record_video, observationNormalizer)
+    evaluator = Evaluator(configs, worker_id, visual_observation_space, vector_observation_space, action_space_shape, n_agents, video_path, record_video,observationNormalizer = observationNormalizer)
 
     # Evaluate
     logger.info("Step 4: Run evaluation . . .")
     eval_duration, raw_episode_results = evaluator.evaluate(model, device)
+
     episode_result = _process_episode_info(raw_episode_results)
 
     # Print results

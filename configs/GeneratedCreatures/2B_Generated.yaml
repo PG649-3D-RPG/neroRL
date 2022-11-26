@@ -8,7 +8,8 @@ environment:
   # type: "Unity"
   # Environment Name (Unity environments have to specify the path to the executable)
   #name: "/home/jannik/Documents/Projektgruppe/Executables/Walker_13_07/Walker_13_07"
-  name: "/home/jannik/Documents/Projektgruppe/LiDo/Unity-Builds-Generated/2B_Generated_1911/2B_Generated_1911" 
+  # name: "/home/jannik/Documents/Projektgruppe/LiDo/Unity-Builds-Generated/2B_Generated_1911/2B_Generated_1911" 
+  name: "/home/jannik/Documents/Projektgruppe/LiDo/Unity-Builds-Generated/2B_Generated_2611/2B_Generated_2611" 
   # name: "./UnityBuilds/ObstacleTowerReduced/ObstacleTower"
   frame_skip: 1
   last_action_to_obs: False
@@ -24,10 +25,11 @@ environment:
 
 ### MODEL CONFIG ###
 model:
-  load_model: False
-  model_path: "/home/jannik/Documents/Projektgruppe/LiDo/checkpoints/GeneratedD1V2_Split_MB-8500.pt"
+  load_model: True
+  model_path: "/home/jannik/Documents/Projektgruppe/LiDo/checkpoints/2B_Generated/20221119-153629_6780/Generated2B-5100.pt"
   checkpoint_interval: 100
-  activation: "tanh"
+  policy_activation: "swish"
+  value_activation: "relu"
   vis_encoder: "cnn"
   vec_encoder: "linear" # "linear", "none"
   num_vec_encoder_units: 512
@@ -38,11 +40,12 @@ model:
   tanh_squashing: False
   normalize_observations: True
 
+
 ### EVALUATION CONFIG ###
 evaluation:
   evaluate: False
-  n_workers: 3
-  seeds: [1001, 1002, 1003, 1004, 1005]
+  n_workers: 1
+  seeds: [1001, 1002] #, 1003, 1004, 1005]
   interval: 50
 
 ### SAMPLER CONFIG
