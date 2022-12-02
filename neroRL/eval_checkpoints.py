@@ -133,7 +133,7 @@ def main():
 
     # Save results to file
     print("\nStep 5: Save to File: " + name)
-    results = np.asarray(results).reshape(len(checkpoints), len(configs["evaluation"]["seeds"]), configs["evaluation"]["n_workers"])
+    results = np.asarray(results).reshape(len(checkpoints), len(configs["evaluation"]["seeds"]), configs["evaluation"]["n_workers"]*n_agents)
     os.makedirs(os.path.dirname(name), exist_ok=True)
     outfile = open(name, "wb")
     pickle.dump(results, outfile)
