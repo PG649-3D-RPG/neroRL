@@ -24,6 +24,7 @@ from neroRL.utils.yaml_parser import YamlParser
 from neroRL.evaluator import Evaluator
 from neroRL.environments.wrapper import wrap_environment
 from neroRL.nn.actor_critic import create_actor_critic_model
+from neroRL.normalization.observation_normalizer import NdNormalizer
 
 def main():
     # Docopt command line arguments
@@ -57,12 +58,12 @@ def main():
     # Create dummy environment to retrieve the shapes of the observation and action space for further processing
     print("Step 1: Creating dummy environment of type " + configs["environment"]["type"])
     dummy_env = wrap_environment(configs["environment"], worker_id)
+    dummy_env.reset()
     visual_observation_space = dummy_env.visual_observation_space
     vector_observation_space = dummy_env.vector_observation_space
-    if isinstance(dummy_env.action_space, spaces.Discrete):
-        action_space_shape = (dummy_env.action_space.n,)
-    else:
-        action_space_shape = tuple(dummy_env.action_space.nvec)
+    n_agents = dummy_env.n_agents
+    if isinstance(dummy_env.action_space, spaces.Box):
+        action_space_shape = dummy_env.action_space.shape
     dummy_env.close()
 
     # Init evaluator
@@ -73,7 +74,7 @@ def main():
     for k, v in configs["evaluation"].items():
         print("Step 2: " + str(k) + ": " + str(v))
     print("Step 2: Init Evaluator")
-    evaluator = Evaluator(configs, worker_id, visual_observation_space, vector_observation_space)
+    evaluator = Evaluator(configs, worker_id, visual_observation_space, vector_observation_space, action_space_shape = action_space_shape, n_agents= n_agents)
 
     # Init model
     print("Step 2: Initialize model")
@@ -105,10 +106,17 @@ def main():
     results = []
     current_checkpoint = 0
     for checkpoint in checkpoints:
-        loaded_checkpoint = torch.load(checkpoint)
+        loaded_checkpoint = torch.load(checkpoint, map_location=device)
         model.load_state_dict(loaded_checkpoint["model"])
         if "recurrence" in configs["model"]:
             model.set_mean_recurrent_cell_states(loaded_checkpoint["hxs"], loaded_checkpoint["cxs"])
+            
+        observationNormalizer = NdNormalizer(vector_observation_space) if configs["model"]["normalize_observations"] else None
+        if "normalizer" in loaded_checkpoint.keys():
+            observationNormalizer.set_data(loaded_checkpoint["normalizer"])
+
+        evaluator.observationNormalizer = observationNormalizer
+
         _, res = evaluator.evaluate(model, device)
         results.append(res)
         current_checkpoint = current_checkpoint + 1
@@ -141,7 +149,7 @@ def get_sorted_checkpoints(dirpath):
         {list} -- List that containts the full file path to each checkpoint
     """
     a = [s for s in os.listdir(dirpath)
-         if os.path.isfile(os.path.join(dirpath, s))]
+         if os.path.isfile(os.path.join(dirpath, s)) and s.__contains__(".pt")]
     a.sort(key=lambda s: os.path.getmtime(os.path.join(dirpath, s)))
     for i, f in enumerate(a):
         a[i] = os.path.join(dirpath, f)
