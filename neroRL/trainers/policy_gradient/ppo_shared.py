@@ -49,8 +49,10 @@ class PPOTrainer(BaseTrainer):
         self.beta = self.beta_schedule["initial"]
         self.clip_range = self.cr_schedule["initial"]
 
-        self.normalize_advantage_batch = configs["trainer"]["normalize_advantage_batch"]
+        advantage_normalization_option = configs["trainer"]["normalize_advantage"] # options: "none", "batch", default: minibatch
 
+        self.normalize_advantage_batch = "batch" == advantage_normalization_option
+        self.normalize_advantage_none = "none" == advantage_normalization_option
 
         # Instantiate optimizer
         self.optimizer = optim.AdamW(self.model.parameters(), lr=self.learning_rate, eps=1e-5)
@@ -64,7 +66,7 @@ class PPOTrainer(BaseTrainer):
 
         early_stop = False
 
-        if self.normalize_advantage_batch: #normalize advantages for the entire batch rather than minibatch-wise
+        if not self.normalize_advantage_none and self.normalize_advantage_batch: #normalize advantages for the entire batch rather than minibatch-wise
             self.sampler.buffer.samples_flat["norm_advantages"] = (self.sampler.buffer.samples_flat["advantages"] - self.sampler.buffer.samples_flat["advantages"].mean()) / (self.sampler.buffer.samples_flat["advantages"].std() + 1e-8)
 
         # Train policy and value function for e epochs using mini batches
@@ -126,9 +128,16 @@ class PPOTrainer(BaseTrainer):
         # Policy Loss
         # Retrieve new log_probs from the policy
         log_probs = policy.log_prob(samples["actions"]).sum(1)
-
+        
         # Compute surrogates
-        normalized_advantage = (samples["advantages"] - samples["advantages"].mean()) / (samples["advantages"].std() + 1e-8) if not self.normalize_advantage_batch else samples["norm_advantages"] #normalize advantages per minibatch if they have not been normalized per batch
+        if self.normalize_advantage_none:
+            normalized_advantage = samples["advantages"] # no normalization
+        elif self.normalize_advantage_batch:
+            normalized_advantage = samples["norm_advantages"] # per batch
+        else:
+            normalized_advantage = (samples["advantages"] - samples["advantages"].mean()) / (samples["advantages"].std() + 1e-8) # per minibatch
+
+        # normalized_advantage = (samples["advantages"] - samples["advantages"].mean()) / (samples["advantages"].std() + 1e-8) if self.normalize_advantage and not self.normalize_advantage_batch else samples["norm_advantages"] #normalize advantages per minibatch if they have not been normalized per batch
 
         #removed this as it should not be necessary for continuous actions
         # Repeat is necessary for multi-discrete action spaces
