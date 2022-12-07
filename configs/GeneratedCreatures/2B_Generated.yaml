@@ -9,7 +9,8 @@ environment:
   # Environment Name (Unity environments have to specify the path to the executable)
   #name: "/home/jannik/Documents/Projektgruppe/Executables/Walker_13_07/Walker_13_07"
   # name: "/home/jannik/Documents/Projektgruppe/LiDo/Unity-Builds-Generated/2B_Generated_1911/2B_Generated_1911" 
-  name: "/home/jannik/Documents/Projektgruppe/LiDo/Unity-Builds-Generated/2B_Generated_2611/2B_Generated_2611" 
+  #name: "/home/jannik/Documents/Projektgruppe/LiDo/Unity-Builds-Generated/2B_Generated_2611/2B_Generated_2611" 
+  name: ""
   # name: "./UnityBuilds/ObstacleTowerReduced/ObstacleTower"
   frame_skip: 1
   last_action_to_obs: False

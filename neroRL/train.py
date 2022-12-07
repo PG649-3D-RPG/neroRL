@@ -22,6 +22,7 @@ def main():
         --run-id=<path>            Specifies the tag of the tensorboard summaries [default: default].
         --out=<path>               Specifies the path to output files such as summaries and checkpoints. [default: ./]
         --seed=<n>      	       Specifies the seed to use during training. If set to smaller than 0, use a random seed. [default: -1]
+        --env=<path>               Path to the environment file; overrides the environment name specified in the config. [default: ./]
     """
     
     options = docopt(_USAGE)
@@ -30,6 +31,7 @@ def main():
     run_id = options["--run-id"]
     out_path = options["--out"]
     seed = int(options["--seed"])
+    env = options["--env"]
 
     # Sampled seed if a value smaller than 0 was submitted
     if seed < 0:
@@ -37,6 +39,9 @@ def main():
 
     # Load environment, model, evaluation and training parameters
     configs = YamlParser(config_path).get_config()
+
+    if env != "./":
+        configs["environment"]["name"]=env
 
     # Initialize trainer
     if configs["trainer"]["algorithm"] == "PPO":
