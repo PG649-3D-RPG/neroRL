@@ -44,8 +44,8 @@ def worker_process(remote: multiprocessing.connection.Connection, env_seed, env_
                 remote.send(env.get_episode_trajectory)
             else:
                 raise NotImplementedError
-        except:
-            break
+        except Exception as e:
+            raise WorkerException(e)
 
 class Worker:
     """A worker that runs one thread and controls its own environment instance."""
