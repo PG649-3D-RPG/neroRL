@@ -58,7 +58,27 @@ class Worker:
             env_config {dict -- The configuration data of the desired environment
             worker_id {int} -- worker_id {int} -- Id for the environment's process. This is necessary for Unity ML-Agents environments, because these operate on different ports.
         """
-        env_seed = randint(0, 2 ** 32 - 1) #TODO
+        env_seed = randint(0, 2 ** 32 - 1)
         self.child, parent = multiprocessing.Pipe()
         self.process = multiprocessing.Process(target=worker_process, args=(parent, env_seed, env_config, worker_id, record_video))
         self.process.start()
+
+    def close(self):
+        self.child.send(("close", None))
+        self.child.recv()
+        self.process.join()
+        self.process.terminate()
+
+
+import tblib.pickling_support
+tblib.pickling_support.install()
+import sys
+
+class WorkerException(Exception):
+    def __init__(self, ee):
+        self.ee = ee
+        __,  __, self.tb = sys.exc_info()
+        super(WorkerException, self).__init__(str(ee))
+
+    def re_raise(self):
+        raise (self.ee, None, self.tb)
